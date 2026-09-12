@@ -1,0 +1,25 @@
+# IDE and local environments
+.idea/
+.vscode/
+.venv/
+venv/
+env/
+
+# Python caches and build output
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+*.egg-info/
+
+# Local secrets and environment overrides
+.env
+.env.*
+!.env.example
+
+# OS noise
+.DS_Store
+Thumbs.db
