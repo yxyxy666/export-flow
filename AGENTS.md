@@ -39,6 +39,7 @@ AGENTS.md > .specify/memory/constitution.md > docs/rules/ > specs/<feature-dir>/
 | 路径 | 用途 | 维护时机 |
 | --- | --- | --- |
 | `AGENTS.md` | 模型入口、项目地图和不可绕过的总原则 | 总规则或目录职责变化时 |
+| `docs/product/` | 产品需求基线：业务背景、目标、范围、用户流程和产品验收口径 | 产品需求讨论、评审和定稿时 |
 | `docs/rules/` | 前后端、测试、脚本、构建、容器、命名等局部规则 | 对应规则变化时 |
 | `.specify/memory/constitution.md` | 项目开发原则和开发阶段门禁 | 原则变化时同步更新 |
 | `specs/<feature-dir>/` | 标准规格产物：`spec.md`、`plan.md`、`tasks.md` 及其附属产物 | 中高风险变更开始前，实施中同步 |
@@ -48,6 +49,7 @@ AGENTS.md > .specify/memory/constitution.md > docs/rules/ > specs/<feature-dir>/
 
 ## 按任务查阅
 
+- 产品需求讨论或定稿：读 `docs/product/` 下对应的产品需求文档；不因此启动开发规格流程。
 - 新功能或行为变化：先读本文件和 `.specify/memory/constitution.md`，再读对应领域规则、规格、测试和实现。
 - 架构、依赖或数据存储变化：先读 `docs/adr/`，必要时新增 ADR。
 - CI、打包、发布、脚本：读 `docs/rules/build.md` 和 `docs/rules/scripts.md`。
