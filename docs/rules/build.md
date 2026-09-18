@@ -1,5 +1,7 @@
 # 构建、测试与打包规则
 
+CI 使用 GitHub Actions。前端使用 `pnpm` 的 frozen lockfile 模式，后端使用 Maven Wrapper；构建产物和测试报告使用 GitHub Actions Artifacts 保存。本期仅提供本地 Docker Compose 运行方式，不建设远程部署流水线或外部制品仓库。
+
 - 依赖必须锁版本并提交锁文件；构建不得依赖开发者本机隐式状态。
 - CI 顺序：格式化检查 → 静态分析 → 单元测试 → 集成测试 → 构建/打包 → 产物检查。
 - 产物必须可追溯到提交、版本和构建参数；禁止把密钥打入产物。

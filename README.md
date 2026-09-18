@@ -2,7 +2,9 @@
 
 项目规范、文档基线和协作入口都在 [`AGENTS.md`](AGENTS.md)。模型或贡献者开始工作前，请先阅读该文件。
 
-本仓库采用规格驱动开发方法和中文规格模板。项目原则位于 `.specify/memory/constitution.md`。技术栈和产品需求尚未确认，请先处理 [`docs/decisions-pending.md`](docs/decisions-pending.md)。
+本仓库采用规格驱动开发方法和中文规格模板。项目原则位于 `.specify/memory/constitution.md`。当前技术决策见 [`docs/adr/`](docs/adr/)，新出现且尚未决定的事项记录在 [`docs/decisions-pending.md`](docs/decisions-pending.md)。
+
+技术栈基线：React + TypeScript + Vite + Ant Design 前端，Java 21 + Spring Boot 3 + PostgreSQL 后端，Apache POI 流式生成 Excel；本地通过 Docker Compose 运行。
 
 规格流程仅负责开发阶段的需求、计划和任务拆分；构建、测试执行、打包、容器和发布遵循 `docs/rules/` 中的项目规则。中高风险变更使用 `spec.md`、`plan.md`、`tasks.md` 及按需生成的附属产物。
 

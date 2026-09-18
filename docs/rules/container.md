@@ -1,5 +1,7 @@
 # 容器与本地启动规则
 
+本地运行使用 Docker Compose，至少包含前端、Spring Boot 后端和 PostgreSQL；导出文件通过后端容器的命名卷持久化。本期不运行 Redis、消息队列或远程对象存储。
+
 - 镜像使用多阶段构建、固定基础镜像版本、非 root 用户和最小运行时依赖。
 - 容器配置通过环境变量/挂载注入，密钥不得写入 Dockerfile 或镜像层。
 - 启动必须有健康检查；应用优雅处理 SIGTERM；日志输出 stdout/stderr。
