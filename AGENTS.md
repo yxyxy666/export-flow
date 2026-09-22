@@ -6,16 +6,20 @@
 
 1. 本文件：项目地图、文档职责和查阅路径。
 2. `.specify/memory/constitution.md`：SDD/TDD 工作流、风险分级和门禁。
-3. 与当前任务对应的 `docs/rules/*.md`：局部工程规则。
-4. 当前变更目录下的 `specs/<feature-dir>/`：标准规格产物（中高风险任务必需）。
-5. `docs/adr/`：已生效的架构决策。
+3. `docs/product/acceptance-criteria.md`：全项目唯一 AC/SC 编号和定义基线。
+4. 与当前任务对应的 `docs/rules/*.md`：局部工程规则。
+5. 当前变更目录下的 `specs/<feature-dir>/`：标准规格产物（中高风险任务必需）。
+6. `docs/adr/`：已生效的架构决策。
 
 ## 基本约束
 
 - 先按 `.specify/memory/constitution.md` 的“风险分级”章节判断风险，再决定是否启动规格流程；中高风险按“需求规格 → 澄清（可选）→ 技术计划 → 任务拆分”阶段执行，不得跳过规格和项目测试门禁。
+- 中高风险变更的 `spec.md`、`plan.md` 和 `tasks.md` 必须由项目负责人明确审批通过后才能进入测试编写或实现阶段。模型、自检、自动化测试通过、用户要求生成规格，或用户同时描述期望交付物，均不得被解释为规格已获批准；未收到明确审批时必须停在规格评审阶段。
 - 规格流程只负责开发阶段的需求、计划和任务拆分；构建、打包、测试执行、容器和发布遵循 `docs/rules/` 中的项目工具链规则。
 - 先写测试、确认测试失败或覆盖缺口，再写实现；不得反向补测试掩盖行为。
 - 每条验收标准必须使用稳定的 `AC-xxx` 编号，并在 `tasks.md` 中映射到一个或一组测试任务；测试用例必须在名称、注释或元数据中引用对应 `AC-xxx`。实现完成前必须确认不存在未映射或仅有任务、没有测试的验收标准。
+- 每条成功标准必须使用稳定的 `SC-xxx` 编号，并在 `tasks.md` 中映射到验证用例、运行环境和证据；不得用“测试通过”替代产品性能、资源或数据准确性目标。
+- AC/SC 的编号和完整定义只维护在 `docs/product/acceptance-criteria.md`；其他文档提到具体编号时必须使用可点击链接，不得复制定义或裸写编号。
 - 验收标准必须是可观察、可判定的行为断言；AC、实现任务和测试之间的多对多关系必须通过显式映射保持双向追溯。具体编号和映射执行方式遵循 `docs/rules/testing.md`。
 - 文档、测试、实现和 ADR 必须互相引用。
 - 不确定的事项写入 `docs/decisions-pending.md`，不得自行伪造已确认的技术选型。
@@ -41,6 +45,7 @@ AGENTS.md > .specify/memory/constitution.md > docs/rules/ > specs/<feature-dir>/
 | --- | --- | --- |
 | `AGENTS.md` | 模型入口、项目地图和不可绕过的总原则 | 总规则或目录职责变化时 |
 | `docs/product/` | 产品需求基线：业务背景、目标、范围、用户流程和产品验收口径 | 产品需求讨论、评审和定稿时 |
+| `docs/product/acceptance-criteria.md` | 全项目 AC/SC 唯一编号、定义和稳定锚点 | 验收行为或成功度量变化时 |
 | `docs/rules/` | 前后端、测试、脚本、构建、容器、命名等局部规则 | 对应规则变化时 |
 | `.specify/memory/constitution.md` | 项目开发原则和开发阶段门禁 | 原则变化时同步更新 |
 | `specs/<feature-dir>/` | 标准规格产物：`spec.md`、`plan.md`、`tasks.md` 及其附属产物 | 中高风险变更开始前，实施中同步 |
@@ -62,7 +67,7 @@ AGENTS.md > .specify/memory/constitution.md > docs/rules/ > specs/<feature-dir>/
 
 项目规格流程管理 `specs/<feature-dir>/` 的命名和文件结构。核心文件为：
 
-- `spec.md`：用户故事、范围、验收标准、非目标和需求约束。
+- `spec.md`：用户故事、范围、AC/SC 链接、非目标和需求约束。
 - `plan.md`：技术方案、研究、数据模型、契约目录和实现结构。
 - `tasks.md`：按用户故事组织的可执行任务。
 

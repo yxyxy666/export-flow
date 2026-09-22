@@ -14,17 +14,17 @@
 
 <!-- 将本节替换为本项目和本功能的实际技术细节。下列结构仅用于指导迭代，不是固定要求。 -->
 
-**语言/版本**：[例如 Python 3.11、Swift 5.9、Rust 1.75 或待澄清]
+**语言/版本**：[例如 Java 21、TypeScript 或待澄清]
 
-**主要依赖**：[例如 FastAPI、UIKit、LLVM 或待澄清]
+**主要依赖**：[例如 Spring Boot 3、React；待评审依赖须注明状态]
 
-**存储**：[如适用，例如 PostgreSQL、CoreData、文件或不适用]
+**存储**：[如适用，例如 MySQL、CoreData、文件或不适用]
 
-**测试**：[例如 pytest、XCTest、cargo test 或待澄清]
+**测试**：[例如 JUnit Jupiter、Vitest 或待澄清]
 
-**目标平台**：[例如 Linux 服务器、iOS 15+、WASM 或待澄清]
+**目标平台**：[例如 Docker Compose 本地 Web 环境或待澄清]
 
-**项目类型**：[例如 library/cli/web-service/mobile-app/compiler/desktop-app 或待澄清]
+**项目类型**：[Web 前端/后端服务或待澄清]
 
 **性能目标**：[领域指标，例如 1000 req/s、每秒 1 万行、60 fps 或待澄清]
 
@@ -36,7 +36,7 @@
 
 *门禁：必须在阶段 0 研究前通过，并在阶段 1 设计后重新检查。*
 
-[根据 constitution 文件确定门禁]
+[根据 constitution 文件确定风险和门禁；记录项目负责人对 spec、plan、tasks 的明确审批状态。未获批准前不得进入测试或实现。]
 
 ## 项目结构
 
@@ -45,10 +45,10 @@
 ```text
 specs/[###-feature]/
 ├── plan.md              # 本文件
-├── research.md          # 阶段 0 输出
-├── data-model.md        # 阶段 1 输出
-├── quickstart.md        # 阶段 1 输出
-├── contracts/           # 阶段 1 输出
+├── research.md          # 有技术不确定性时
+├── data-model.md        # 涉及数据结构或复杂状态时
+├── quickstart.md        # 需要本地演示或新运行步骤时
+├── contracts/           # 跨模块或外部接口时
 └── tasks.md             # 阶段 2 输出
 ```
 
@@ -56,42 +56,25 @@ specs/[###-feature]/
 <!-- 将下面的占位目录树替换为本功能的实际结构；删除未使用的选项，并补充真实路径。最终计划中不得保留 Option 标签。 -->
 
 ```text
-# [未使用时删除] 选项 1：单项目（默认）
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
-
-tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [未使用时删除] 选项 2：Web 应用（检测到 frontend + backend 时）
+# 按功能计划确认实际目录；以下仅为职责示例
 backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
+└── src/
+    ├── main/java/.../api/
+    ├── main/java/.../application/
+    ├── main/java/.../domain/
+    ├── main/java/.../infrastructure/
+    └── test/java/.../
 
 frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [未使用时删除] 选项 3：移动端 + API（检测到 iOS/Android 时）
-api/
-└── [同上面的 backend 结构]
-
-ios/ 或 android/
-└── [平台特定结构：功能模块、UI 流程和平台测试]
+└── src/
+    ├── app/
+    ├── api/
+    ├── domain/
+    ├── features/
+    └── pages/
 ```
 
-**结构决策**：[记录选定的结构，并引用上面列出的真实目录]
+**结构决策**：[记录选定结构和真实路径；不得把示例目录当作已初始化代码]
 
 ## 复杂度追踪
 
