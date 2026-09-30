@@ -4,7 +4,7 @@
 
 本仓库采用规格驱动开发方法和中文规格模板。项目原则位于 `.specify/memory/constitution.md`。当前技术决策见 [`docs/adr/`](docs/adr/)，新出现且尚未决定的事项记录在 [`docs/decisions-pending.md`](docs/decisions-pending.md)。
 
-已确认技术栈：React + TypeScript + Vite + Ant Design 前端，Java 21 + Spring Boot 3 + MySQL 8.4 后端，Apache POI 流式生成 Excel；本地通过 Docker Compose 运行。RabbitMQ 导出任务队列、MyBatis、Flyway 与 Redis 进度缓存是待评审的目标方案，详见 [`docs/rules/backend.md`](docs/rules/backend.md)；旧 Redis Streams 决策在替代 ADR 获批前仍须按状态辨别，不得将两套方案混用。
+已确认技术栈：React + TypeScript + Vite + Ant Design 前端，Java 21 + Spring Boot 3 + MySQL 8.4 后端，Apache POI 流式生成 Excel；RabbitMQ 承担导出任务队列，MyBatis 负责数据库访问，Flyway 管理迁移，Redis 缓存最新进度。本地启动、容器、CI、打包和发布方式尚未确定；其他运行参数、执行恢复和跨实例 SSE 通知也待决策，详见 [`docs/rules/backend.md`](docs/rules/backend.md) 与[待确认决策](docs/decisions-pending.md)。
 
 规格流程仅负责开发阶段的需求、计划和任务拆分；构建、测试执行、打包、容器和发布遵循 `docs/rules/` 中的项目规则。中高风险变更使用 `spec.md`、`plan.md`、`tasks.md` 及按需生成的附属产物。
 
@@ -59,7 +59,7 @@ AGENTS.md
 | `specs/` | 按需创建的功能规格、计划和任务，随功能变更提交并评审 |
 | `docs/adr/` | 架构决策记录，重大技术选择必须新增或更新 |
 
-任何下级文档与上级规则冲突时，必须暂停当前工作，先按上级规则修正文档。
+上述顺序约束开发治理与工程实现，不允许工程规则改写产品基线或已接受的 ADR。发现冲突时暂停实施，先确认事项归属，再更新其所有者文档并同步下游文档；详见 [`AGENTS.md`](AGENTS.md)。
 
 ## 按任务查阅
 

@@ -2,13 +2,13 @@
 
 **创建日期**：2026-09-13
 
-**版本**：1.0.3
+**版本**：1.0.10
 
 **定稿日期**：2026-09-13
 
-**修订日期**：2026-09-21
+**修订日期**：2026-09-30
 
-**修订说明**：验收与成功标准迁移到统一基线；任务进度由固定轮询改为按需 SSE，不使用固定或低频轮询。
+**修订说明**：产品需求只保留可观察行为；任务投递、认领与实时通知的实现细节归 ADR 或后续功能规格。
 
 **文档目的**：定义订单查询和 Excel 异步导出的产品需求，作为后续产品评审及前端、后端、测试方案编写的共同依据。
 
@@ -18,7 +18,7 @@
 
 订单运营人员经常需要根据下单时间、订单状态和销售渠道等条件筛选订单，并将结果导出为 Excel，用于对账、运营分析或离线处理。
 
-当数据量增大时，在订单列表请求中一次查询全部数据、在内存中构造文件并通过同一个 HTTP 请求返回，容易出现请求超时、服务内存上涨、重复点击生成重复文件以及失败过程不可见等问题。
+当数据量增大时，如果导出一直占用当前请求，用户可能等待过久、重复提交，也看不到处理进度或失败原因。
 
 ExportFlow 需要提供独立、可复用的异步导出闭环。用户在订单列表提交导出后，可在导出任务列表查看任务进度和结果；任务成功后下载 Excel，失败后查看原因并重试。导出任务记录和生成的文件永久保留。
 
@@ -28,7 +28,7 @@ ExportFlow 需要提供独立、可复用的异步导出闭环。用户在订单
 - 支持导出已选订单或符合当前筛选条件的全部订单。
 - 支持单次最多 200,000 条订单数据的 Excel 导出，并在本地环境中于 120 秒内完成上限数据量的文件生成。
 - 将耗时导出与订单列表请求解耦，使用户能够持续查看任务状态和处理进度。
-- 使用幂等标识防止重复提交产生重复任务和重复文件。
+- 防止同一次提交的重复请求产生重复任务和文件。
 - 让导出失败和不可执行操作对用户可见且可理解。
 
 ## 3. 目标用户与使用场景
@@ -80,13 +80,13 @@ flowchart TD
 
 作为订单运营人员，我希望导出已选订单或全部筛选结果，以便将所需订单用于对账、分析或离线处理。
 
-验收标准：[`AC-006`](acceptance-criteria.md#ac-006)、[`AC-007`](acceptance-criteria.md#ac-007)、[`AC-008`](acceptance-criteria.md#ac-008)、[`AC-009`](acceptance-criteria.md#ac-009)、[`AC-010`](acceptance-criteria.md#ac-010)、[`AC-011`](acceptance-criteria.md#ac-011)、[`AC-019`](acceptance-criteria.md#ac-019)、[`AC-025`](acceptance-criteria.md#ac-025)、[`AC-030`](acceptance-criteria.md#ac-030)。
+验收标准：[`AC-006`](acceptance-criteria.md#ac-006)、[`AC-007`](acceptance-criteria.md#ac-007)、[`AC-008`](acceptance-criteria.md#ac-008)、[`AC-009`](acceptance-criteria.md#ac-009)、[`AC-010`](acceptance-criteria.md#ac-010)、[`AC-011`](acceptance-criteria.md#ac-011)、[`AC-019`](acceptance-criteria.md#ac-019)、[`AC-025`](acceptance-criteria.md#ac-025)、[`AC-030`](acceptance-criteria.md#ac-030)、[`AC-050`](acceptance-criteria.md#ac-050)、[`AC-051`](acceptance-criteria.md#ac-051)。
 
 ### 5.3 用户故事三：跟踪并下载导出结果（P1）
 
 作为订单运营人员，我希望查看导出任务的状态和进度，并在任务完成后下载文件，以便掌握耗时导出的处理结果。
 
-验收标准：[`AC-012`](acceptance-criteria.md#ac-012)、[`AC-013`](acceptance-criteria.md#ac-013)、[`AC-014`](acceptance-criteria.md#ac-014)、[`AC-015`](acceptance-criteria.md#ac-015)、[`AC-026`](acceptance-criteria.md#ac-026)、[`AC-027`](acceptance-criteria.md#ac-027)、[`AC-028`](acceptance-criteria.md#ac-028)、[`AC-031`](acceptance-criteria.md#ac-031)、[`AC-037`](acceptance-criteria.md#ac-037)、[`AC-038`](acceptance-criteria.md#ac-038)、[`AC-039`](acceptance-criteria.md#ac-039)、[`AC-040`](acceptance-criteria.md#ac-040)、[`AC-042`](acceptance-criteria.md#ac-042)、[`AC-043`](acceptance-criteria.md#ac-043)、[`AC-044`](acceptance-criteria.md#ac-044)。[`AC-036`](acceptance-criteria.md#ac-036) 是待产品决策的候选排序，不属于当前默认排序要求。
+验收标准：[`AC-012`](acceptance-criteria.md#ac-012)、[`AC-013`](acceptance-criteria.md#ac-013)、[`AC-014`](acceptance-criteria.md#ac-014)、[`AC-015`](acceptance-criteria.md#ac-015)、[`AC-026`](acceptance-criteria.md#ac-026)、[`AC-027`](acceptance-criteria.md#ac-027)、[`AC-028`](acceptance-criteria.md#ac-028)、[`AC-031`](acceptance-criteria.md#ac-031)、[`AC-037`](acceptance-criteria.md#ac-037)、[`AC-038`](acceptance-criteria.md#ac-038)、[`AC-039`](acceptance-criteria.md#ac-039)、[`AC-040`](acceptance-criteria.md#ac-040)、[`AC-042`](acceptance-criteria.md#ac-042)、[`AC-043`](acceptance-criteria.md#ac-043)、[`AC-044`](acceptance-criteria.md#ac-044)、[`AC-049`](acceptance-criteria.md#ac-049)。[`AC-036`](acceptance-criteria.md#ac-036) 是待产品决策的候选排序，不属于当前默认排序要求；依赖它的 [`AC-037`](acceptance-criteria.md#ac-037) 也不能单独获批实施。
 
 ### 5.4 用户故事四：处理失败任务（P2）
 
@@ -183,23 +183,27 @@ flowchart TD
 | 错误摘要 | 任务失败时展示用户可理解的信息 |
 | 操作 | 根据任务状态提供下载或重试；不可用操作须禁用并说明原因 |
 
-任务列表默认按创建时间倒序、再按任务唯一 ID 倒序排列。服务端分页默认每页 20 条，可选择 20、50、100；修改每页数量后返回第一页。SSE 进度更新保留当前页，重试创建新任务后返回第一页。
+任务列表默认按创建时间倒序、再按任务唯一 ID 倒序排列。分页默认每页 20 条，可选择 20、50、100；修改每页数量后返回第一页。进度更新时保留当前页，重试创建新任务后返回第一页。
 
 ### 7.2 状态约束
 
-| 当前状态 | 中文展示 | 允许动作 | 禁止动作 |
-| --- | --- | --- | --- |
-| `PENDING` | 等待中 | 查看任务信息 | 下载、重试 |
-| `RUNNING` | 生成中 | 查看任务信息和处理进度 | 下载、重试 |
-| `SUCCEEDED` | 已完成 | 查看任务信息、下载文件 | 重试 |
-| `FAILED` | 失败 | 查看任务信息和错误摘要、重试 | 下载 |
+| 状态 | 允许动作 | 禁止动作 |
+| --- | --- | --- |
+| 等待中 | 查看任务信息 | 下载、重试 |
+| 生成中 | 查看任务信息和处理进度 | 下载、重试 |
+| 已完成 | 查看任务信息、下载文件 | 重试 |
+| 失败 | 查看任务信息和错误摘要、重试 | 下载 |
 
 ### 7.3 状态转换
 
 ```text
-PENDING -> RUNNING -> SUCCEEDED
-                   -> FAILED
+等待中 -> 生成中 -> 已完成
+                   -> 失败
 ```
+
+创建成功意味着用户已经能通过任务编号查到任务，并不意味着文件已开始生成。创建结果不明时，页面保留用户的选择；对同一次提交重试后应找回原任务，而不是产生第二个任务。对应行为见 [`AC-050`](acceptance-criteria.md#ac-050) 和 [`AC-051`](acceptance-criteria.md#ac-051)。
+
+任务等待时，不能只因等待较久就显示失败或生成第二份文件；处理环节短暂异常后，同一任务仍可继续。等待多久后向用户给出最终失败结果尚未决定，见[待确认决策](../decisions-pending.md)。队列交付和认领机制由 [`ADR-0004`](../adr/0004-rabbitmq-task-queue.md) 与 [`ADR-0006`](../adr/0006-broker-owned-pending-delivery.md) 负责说明，不属于本产品状态表。
 
 失败任务执行“重试”时，系统按原任务的导出范围和字段配置创建一个具有新任务编号的任务。原失败任务记录保留，不回退或覆盖原任务状态。
 
@@ -253,12 +257,13 @@ PENDING -> RUNNING -> SUCCEEDED
 - 查询结果为空时，不允许创建“导出筛选结果”任务。
 - 未勾选订单时，不允许创建“导出已选”任务。
 - 导出范围超过 200,000 条订单时，不允许创建导出任务。
-- 携带同一 `Idempotency-Key` 的重复创建请求只能对应一个任务，不得产生重复文件。
+- 同一次导出提交的重复请求只能对应一个任务，不得产生重复文件。
 - 任务失败时必须保留可理解的错误摘要，并允许符合条件的用户重试。
+- 任务已创建但尚未开工时，不仅凭固定等待时间宣告失败或创建重复任务，见 [`AC-049`](acceptance-criteria.md#ac-049)。长期无法开始时的最终用户结果仍待决策。
 - 导出配置中必须至少选择一个字段；仅剩一个已选字段时不得继续取消。
 - 用户刷新页面或离开页面不影响任务在后台继续执行。
-- 导出任务页面存在活跃任务时使用唯一 SSE 连接更新进度，不使用固定或低频轮询。后端发送有效 `stream-idle` 后前端主动关闭；创建/重试成功、进入或恢复页面、恢复联网、手动刷新或同浏览器跨标签页通知时执行一次快照查询，发现活跃任务后重新连接。
-- 接口时间统一使用 UTC ISO 8601 字符串（带 `Z`）；页面、Excel 和文件名统一使用 `Asia/Hong_Kong` 时区展示。
+- 导出任务页面可见且存在活跃任务时持续更新进度；没有活跃任务后停止实时更新，后续有新活动时恢复。本期不持续发起周期性查询；具体连接与恢复契约留待功能规格确定。
+- 页面、Excel 和文件名统一使用 `Asia/Hong_Kong` 时区展示。
 - 本项目定位为本地学习项目，使用合成数据；本期不引入登录、认证授权、权限审计、生产监控或合规评审，不修改任务和文件永久保留要求。
 - 合成订单在初始化后只读，本期不提供会改变订单筛选结果的数据写入入口。
 - 创建导出任务成功后自动进入导出任务页面并清空订单勾选；创建失败时保留筛选条件、导出字段和订单勾选。
@@ -272,8 +277,8 @@ MVP 的唯一成功标准定义为 [`SC-001`](acceptance-criteria.md#sc-001)、[
 
 ## 12. 待确认事项
 
-按需 SSE 已确定替代轮询；具体连接参数、后端实现和其他未决项统一记录在 [`docs/decisions-pending.md`](../decisions-pending.md)，不得在实现中隐式决定。
+任务进度须按需实时更新，不持续发起周期性查询。具体技术通道见 [`ADR-0005`](../adr/0005-backend-stack-and-progress-cache.md)；连接参数、异常恢复和其他未决事项记录在 [`docs/decisions-pending.md`](../decisions-pending.md)，不得在实现中隐式决定。
 
 ## 13. 后续文档关系
 
-本文 `1.0.0` 版本是首个正式产品需求基线，当前版本为 `1.0.3`。后续前端、后端和测试文档均以当前版本和 [`acceptance-criteria.md`](acceptance-criteria.md) 为上游依据；产品需求发生变化时，应先更新二者并升级版本号，再同步调整下游文档。
+本文 `1.0.0` 版本是首个正式产品需求基线，当前版本为 `1.0.10`。后续前端、后端和测试文档均以当前版本和 [`acceptance-criteria.md`](acceptance-criteria.md) 为上游依据；产品需求发生变化时，应先更新二者并升级版本号，再同步调整下游文档。

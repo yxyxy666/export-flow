@@ -1,37 +1,43 @@
 # 待确认决策
 
+## 运行与交付
+
+- 本地启动方式、是否使用容器及其拓扑、健康检查、资源配置、CI、构建打包、产物保存与发布流程均未确定。`docs/rules/container.md` 和 `docs/rules/build.md` 暂不提供实施约束；不得把先前的 Docker Compose 或 GitHub Actions 描述当作已批准方案。
+
 ## SSE 生命周期参数
 
-原 SSE 契约草案已随功能规格撤回；当前链路学习说明见 [`DATA-FLOW.md`](../DATA-FLOW.md)，具体契约待重新制定。
+原 SSE 契约草案已撤回，具体契约待重新制定。
 
 - `stream-idle` 发送前的空闲宽限期尚未确定。**建议**：初始值为可配置的 1 秒，使用可控时钟验证；创建/重试导致活动版本变化时取消本次空闲候选并重新计时。
-- 异常断线的退避、心跳、SSE 事件 ID 和 REST 回补窗口尚未确定。**建议**：使用受控退避和心跳；若 Redis 只做最新进度缓存，就没有可依赖的 Stream 游标和事件保留窗口，断线时从 MySQL 执行一次快照回补。
+- 异常断线的退避、心跳、SSE 事件 ID 和 REST 回补窗口尚未确定。**建议**：使用受控退避和心跳；Redis 只缓存最新进度、不提供事件历史，断线时从 MySQL 执行一次快照回补。
 - 页面隐藏时是立即关闭 SSE，还是保留短暂宽限后关闭，尚未确定。**建议**：本地学习项目在隐藏时立即关闭，恢复可见时执行一次快照查询，有活跃任务再连接。
 - 项目已决定不使用任何固定或低频轮询。SSE 正常关闭后，其他设备或服务端入口新建的任务无法自动唤醒当前页面。**建议**：本期接受该限制，只在进入/恢复页面、恢复联网和手动刷新时执行一次快照查询；若未来要求跨设备即时发现，则必须重新评审永久通知通道或 Web Push。
-- 本期没有认证，规格和契约草案因此暂按“当前单一环境内全部未完成任务”编写，该范围语义仍待审批。**建议**：批准此单一环境语义；未来引入认证时通过新 ADR 和契约版本增加用户/租户隔离，不在当前代码中伪造用户边界。
+- 本期没有认证，未来规格和契约中的“当前单一环境内全部未完成任务”范围语义仍待审批。**建议**：批准此单一环境语义；未来引入认证时通过新 ADR 和契约版本增加用户/租户隔离，不在当前代码中伪造用户边界。
 
 ## 后端实现选择
 
-- [`AC-028`](product/acceptance-criteria.md#ac-028) 是当前已确认的默认排序；[`AC-036`](product/acceptance-criteria.md#ac-036) 是待审批的活跃优先方案，二者不能同时实施。**待决策**：是否将默认排序改为活跃优先；若批准，明确由候选标准取代现行标准，保留原编号和定义并同步 PRD、前端规则和测试映射。评审前保持创建时间倒序。
+- [`AC-028`](product/acceptance-criteria.md#ac-028) 是当前已确认的默认排序；[`AC-036`](product/acceptance-criteria.md#ac-036) 是待审批的活跃优先方案，二者不能同时实施。候选 [`AC-037`](product/acceptance-criteria.md#ac-037) 使用了活跃优先方案的状态优先级，不能单独获批。**待决策**：是否将默认排序改为活跃优先；若批准，明确由候选标准取代现行标准，保留原编号和定义并同步 PRD、前端规则和测试映射。评审前保持创建时间倒序。
 
-- 用户参考图指定 MyBatis 动态 SQL 与 Flyway Schema 演进，已写入待评审后端规则；此前的 Spring JDBC 建议不再作为候选实施基线。MyBatis/Flyway 的 ADR 评审、MySQL 事务隔离级别、版本和 outbox 并发领取 SQL 尚未确定，须在真实 MySQL 8.4 LTS 上验证。
-- Redis 8 的镜像、持久化和资源参数尚未确定。待评审的 [`ADR-0006`](adr/0006-backend-stack-and-progress-cache.md) 拟只保留进度缓存；批准前不要把旧进度 Stream 的持久化与裁剪参数套用到缓存。
-- RabbitMQ 的镜像版本、持久化、exchange/queue/routing key、发布确认与正确路由确认、手动消费确认、预取、并发、重投、死信和队列故障后的在途任务对账尚未确定。**建议**：均配置化，并在真实 broker 上验证发布前后及消费确认前后的崩溃窗口。
-- outbox dispatcher、MySQL worker 租约和崩溃恢复参数尚未确定。**建议**：dispatcher 使用有界批次和退避；worker 使用有界租约、心跳和尝试次数，超限后写诊断死信并把任务置为失败；具体数值在实现前审批。
-- 用户参考图指定 Redis 进度缓存、MySQL 事实源与 SSE 广播；待评审的 [`ADR-0006`](adr/0006-backend-stack-and-progress-cache.md) 拟取代 [`ADR-0004`](adr/0004-redis-streams-and-backend-processing.md) 的进度 Stream。Redis 缓存版本、有效期、容量、重建规则，以及跨实例 SSE 通知、在线漏通知补偿和断线快照回补仍待批准。普通订单/任务列表不默认缓存。
+- MyBatis 动态 SQL 与 Flyway Schema 演进已由 [`ADR-0005`](adr/0005-backend-stack-and-progress-cache.md) 确认为选型；具体依赖版本、MySQL 事务隔离级别和 Outbox 并发领取 SQL 尚未确定，须在真实 MySQL 8.4 LTS 上验证。
+- Redis 8 的镜像、可重建进度缓存的有效期、容量和资源参数尚未确定；缓存故障应从 MySQL 回源，跨实例通知机制另行评审。
+- RabbitMQ 的镜像版本、持久化、exchange/queue/routing key、发布确认与正确路由确认、消费者并发、预取量、重投、死信和 Worker 执行中断后的恢复尚未确定。**建议**：按容量验证后配置，并在真实 broker 上验证发布前后及消费确认前后的崩溃窗口。手动消费确认边界见 [`ADR-0006`](adr/0006-broker-owned-pending-delivery.md)。
+- Outbox 长期无法发布时，何时停止自动重试、是否把任务改为 `FAILED`、如何向用户解释等待和失败，均未决定。此前写入文档的固定尝试次数和等待时间已撤回。**建议**：先收集本地故障数据，再确定可观察的产品结果与可验证阈值；在此之前只保留待发送记录、受控重试和告警，不能按旧阈值自动失败。若将来决定失败出口，须用 MySQL 条件更新裁决它与 Worker 认领、发布确认之间的竞争。
+- outbox dispatcher 的批次、退避及并发领取 SQL、队列与消费者健康监测告警、MySQL worker 租约和崩溃恢复参数尚未确定。**建议**：dispatcher 使用有界批次；worker 使用有界租约、心跳和尝试次数，超限后保留诊断信息；Worker 执行失败是否置为 `FAILED` 须另行审批，不能与命令投递耗尽混为一谈。
+- Worker 已收到消息但连接持续存活、却长期卡在 MySQL 认领之前时，RabbitMQ 只知道投递未确认，不知道任务是否开工。应用侧认领监测器的交付时间记录、MySQL 状态核对、认领阈值、通道隔离、认领提交与关闭通道竞态及监测器自身故障恢复尚未确定。**建议**：收到后立即条件认领；认领超时且 MySQL 仍为 `PENDING` 时告警，受控关闭对应通道，使 RabbitMQ 重交付未确认消息；关闭通道前后须防止原 Worker 在认领成功后与新 Worker 重复生成。RabbitMQ 的消费确认超时另按最长文件生成时间设定和验证，不能拿短认领阈值直接替代。两种超时都不能仅凭排队时长把任务判为失败，见 [`ADR-0006`](adr/0006-broker-owned-pending-delivery.md)。
+- Redis 最新进度缓存、MySQL 事实源与 SSE 广播的职责见 [`ADR-0005`](adr/0005-backend-stack-and-progress-cache.md)。在线活跃进度通知优先读取缓存，初次/断线快照及终态裁决使用 MySQL；缓存版本比较、有效期、容量、重建规则，以及跨实例 SSE 通知和在线漏通知补偿仍待批准。普通订单/任务列表不默认缓存。
 - Spring SSE 技术路径尚未确定。**建议**：保持现有同步 Spring MVC 栈并使用 `SseEmitter`，当前规模没有引入 WebFlux 双栈的收益。
-- 相同 `Idempotency-Key` 携带不同载荷时的 HTTP 状态和错误码尚未确定。**建议**：返回 `409 Conflict` 和稳定错误码 `IDEMPOTENCY_KEY_REUSED`，不得返回原任务掩盖调用错误。
+- 相同 `Idempotency-Key` 携带不同载荷时的 HTTP 状态和错误码尚未确定；规范化请求摘要怎样处理 `SELECTED` 订单 ID、`FILTERED` 条件和有序字段也待审批。**建议**：冲突返回 `409 Conflict` 和稳定错误码 `IDEMPOTENCY_KEY_REUSED`，不得返回原任务掩盖调用错误；字段顺序保留业务含义，其他等价输入的规范化规则在契约中明确，并用并发同键测试验证。
 - SIGTERM 时正在生成的任务如何结束尚未确定。**建议**：停止领取 RabbitMQ 新任务消息，在有界宽限内完成当前文件；超时中断时删除临时文件，并由租约恢复策略处理任务。
 
 ## 测试与验证选择
 
 - 后端测试工具基线尚未由 ADR 确认。**建议**：JUnit Jupiter + AssertJ + Spring Boot Test + MockMvc + MySQL 8.4 LTS/RabbitMQ/Redis 8 Testcontainers；只有选择 WebFlux 时才改用 WebTestClient。
 - 静态检查、格式化和覆盖率阈值尚未确定。**建议**：先采用 Spotless、Checkstyle/SpotBugs 和 JaCoCo 收集基线，再单独审批阈值，避免用未经验证的数字阻塞初始化。
-- [`SC-001`](product/acceptance-criteria.md#sc-001) 至 [`SC-004`](product/acceptance-criteria.md#sc-004) 所需的本地参考硬件、容器资源、预热和样本数尚未定义。**建议**：固定一套 Docker Compose 资源配置、JVM `-Xmx512m`、至少 5 次预热和 20 次测量，并把环境摘要随报告归档。
+- [`SC-001`](product/acceptance-criteria.md#sc-001) 至 [`SC-004`](product/acceptance-criteria.md#sc-004) 所需的本地参考硬件、资源限制、预热和样本数尚未定义。**建议**：先确定运行环境，再固定资源与测量过程，并把环境摘要随报告归档；不预设容器方案。
 
 已确认的前端技术栈、测试范围、应用架构、本地运行和下载方式见：
 
 - [`ADR-0002 前端技术栈与测试范围`](adr/0002-frontend-stack-and-test-scope.md)
-- [`ADR-0003 应用技术栈与本地运行架构`](adr/0003-application-stack-and-local-runtime.md)
+- [`ADR-0003 应用技术栈`](adr/0003-application-stack-and-local-runtime.md)
 
 后续出现新的技术、产品或工程歧义时，先在此记录，不得在实现中隐式决定；确认后按事项性质更新产品需求、ADR 或对应规则，并从本文件移除。
