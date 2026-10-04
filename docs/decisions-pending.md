@@ -2,7 +2,8 @@
 
 ## 运行与交付
 
-- 本地启动方式、是否使用容器及其拓扑、健康检查、资源配置、CI、构建打包、产物保存与发布流程均未确定。`docs/rules/container.md` 和 `docs/rules/build.md` 暂不提供实施约束；不得把先前的 Docker Compose 或 GitHub Actions 描述当作已批准方案。
+- 开发阶段复用示例项目已启动的中间件容器已于 2026-10-04 确认，环境记录见[容器与本地启动规则](rules/container.md#当前开发环境已确认)。当前项目的数据库、RabbitMQ vhost/队列与 Redis 键空间隔离及连接配置尚未确定，使用前须明确，避免影响示例项目数据。
+- 当前项目自身的容器配置、应用启动方式、拓扑、健康检查、资源配置和持久化方案后续单独处理；CI、构建打包、产物保存与发布流程仍未确定。`docs/rules/build.md` 暂不提供实施约束；复用现有中间件不表示示例项目的整套 Docker Compose 或先前的 GitHub Actions 描述已成为本项目获批方案。
 
 ## SSE 生命周期参数
 
@@ -19,7 +20,7 @@
 - [`AC-028`](product/acceptance-criteria.md#ac-028) 是当前已确认的默认排序；[`AC-036`](product/acceptance-criteria.md#ac-036) 是待审批的活跃优先方案，二者不能同时实施。候选 [`AC-037`](product/acceptance-criteria.md#ac-037) 使用了活跃优先方案的状态优先级，不能单独获批。**待决策**：是否将默认排序改为活跃优先；若批准，明确由候选标准取代现行标准，保留原编号和定义并同步 PRD、前端规则和测试映射。评审前保持创建时间倒序。
 
 - MyBatis 动态 SQL 与 Flyway Schema 演进已由 [`ADR-0005`](adr/0005-backend-stack-and-progress-cache.md) 确认为选型；具体依赖版本、MySQL 事务隔离级别和 Outbox 并发领取 SQL 尚未确定，须在真实 MySQL 8.4 LTS 上验证。
-- Redis 8 的镜像、可重建进度缓存的有效期、容量和资源参数尚未确定；缓存故障应从 MySQL 回源，跨实例通知机制另行评审。
+- 当前开发阶段复用的 Redis 实际为 `redis:7.4-alpine`，见[环境记录](rules/container.md#当前开发环境已确认)。Redis 8 候选环境与现有版本的兼容性、后续是否升级及镜像锁定尚未确定，容器专项再统一；可重建进度缓存的有效期、容量和资源参数仍待确定。缓存故障应从 MySQL 回源，跨实例通知机制另行评审。
 - RabbitMQ 的镜像版本、持久化、exchange/queue/routing key、发布确认与正确路由确认、消费者并发、预取量、重投、死信和 Worker 执行中断后的恢复尚未确定。**建议**：按容量验证后配置，并在真实 broker 上验证发布前后及消费确认前后的崩溃窗口。手动消费确认边界见 [`ADR-0006`](adr/0006-broker-owned-pending-delivery.md)。
 - Outbox 补投的具体实现参数尚未确定：常规投递扫描周期、批次、并发、发布超时、租约期限、退避上下限与抖动参数、并发领取及三方裁决 SQL、目标队列类型与容量、可靠路由检查的具体配置、告警阈值和已发送/已关闭记录保留周期。后续方案必须遵守已接受的 [`ADR-0007`](adr/0007-outbox-dispatch-retry.md)，不能以参数选择重新改写补投原则、总投递窗口或超时失败规则。
 - Worker 执行锁必须带 owner、到期时间及心跳续租，续租失败的执行者不能继续推进任务；这些需求前提已提出。MySQL 授权、失权停止与到期接管的完整协议、领取与执行的独立超时、旧执行者隔离、尝试上限，以及队列与消费者健康监测告警仍待架构及规格评审，见下文及 [`ADR-0008`](adr/0008-worker-execution-lease-and-recovery.md)。Worker 执行失败与恢复耗尽是否置为 `FAILED` 须明确审批，不能与命令投递耗尽混为一谈，也不因 Outbox 补投原则已确认而自动获批。
