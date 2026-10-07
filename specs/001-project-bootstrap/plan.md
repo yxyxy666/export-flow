@@ -87,7 +87,6 @@ specs/001-project-bootstrap/
 │       │   ├── App.tsx                                                       # 组合应用级 Provider 与路由入口
 │       │   ├── app-providers.tsx                                             # Ant Design 中文 locale、基础令牌；不创建 QueryClient 或后台连接
 │       │   ├── router.tsx                                                    # 根重定向、两个业务路由、404 和路由错误出口；路由实例只创建一次
-│       │   ├── navigation.ts                                                 # 两个业务路径、菜单名称及路由匹配，作为导航元数据唯一来源
 │       │   └── route-error-fallback.tsx                                      # 路由异常时显示安全提示及返回入口，不显示异常原文
 │       ├── layouts/
 │       │   ├── admin-layout.tsx                                              # 组合侧栏与主内容 Outlet；从路径派生选中状态和浏览器标题
@@ -113,6 +112,7 @@ specs/001-project-bootstrap/
 │       │       ├── hooks/use-export-tasks.ts                                 # 任务查询与未来按需实时连接生命周期
 │       │       └── components/export-task-table.tsx                          # 任务列表、进度、动作的展示
 │       └── shared/
+│           ├── navigation/navigation.ts                                      # 两个业务路径、菜单名称及路由匹配；供路由、布局与页面共用，不依赖 app、layouts 或 features
 │           ├── components/static-business-page.tsx                           # 两个页面共同使用的语义化文字标题
 │           ├── api/http-client.ts                                            # 集中 HTTP 请求、取消、超时与协议边界；不在页面拼协议 URL
 │           ├── api/api-error.ts                                              # 稳定错误类型及安全错误归一化
@@ -218,7 +218,6 @@ specs/001-project-bootstrap/
 | `app/App.tsx` | 组合应用级 Provider 与路由入口 | `App` | T-003 |
 | `app/app-providers.tsx` | Ant Design 中文 locale、基础令牌；不创建 QueryClient 或后台连接 | `AppProviders` | T-003 |
 | `app/router.tsx` | 根重定向、两个业务路由、404 和路由错误出口；路由实例只创建一次 | `createAppRouter` | T-003 |
-| `app/navigation.ts` | 两个业务路径、菜单名称及路由匹配，作为导航元数据唯一来源 | `resolveNavigation`；静态配置与类型 | T-003 |
 | `app/route-error-fallback.tsx` | 路由异常时显示安全提示及返回入口，不显示异常原文 | `RouteErrorFallback` | T-003 |
 | `layouts/admin-layout.tsx` | 组合侧栏与主内容 Outlet；从路径派生选中状态和浏览器标题 | `AdminLayout` | T-003 |
 | `layouts/sidebar-menu.tsx` | 用 Ant Design Menu 渲染两个导航项并响应合法选项 | `SidebarMenu`、局部 `handleMenuSelect` | T-003 |
@@ -226,6 +225,7 @@ specs/001-project-bootstrap/
 | `features/export-tasks/pages/task-management-page.tsx` | 只展示任务管理文字 | `TaskManagementPage` | T-003 |
 | `shared/components/static-business-page.tsx` | 两个页面共同使用的语义化文字标题 | `StaticBusinessPage` | T-003 |
 | `pages/not-found-page.tsx` | 轻量 404、返回订单管理链接；不是业务页 | `NotFoundPage` | T-003 |
+| `shared/navigation/navigation.ts` | 两个业务路径、菜单名称及路由匹配，作为导航元数据唯一来源；供路由、布局与页面共用，不依赖 app、layouts 或 features | `resolveNavigation`；静态配置与类型 | T-003 |
 | `shared/styles/global.css` | 根节点高度、布局间距、侧栏宽度、主区域与焦点基础样式 | 无函数 | T-003 |
 
 #### 前端业务及通用占位（相对 `frontend/src/`）
@@ -307,12 +307,12 @@ specs/001-project-bootstrap/
 
 | 类型或常量 | 文件 | 定义草稿 |
 | --- | --- | --- |
-| `BusinessPath` | `app/navigation.ts` | 联合类型 `/orders`、`/export-tasks` |
+| `BusinessPath` | `shared/navigation/navigation.ts` | 联合类型 `/orders`、`/export-tasks` |
 | `NavigationItem` | 同上 | `path: BusinessPath`、`label: string`、`title: string`；本期 label/title 相同 |
 | `NAVIGATION_ITEMS` | 同上 | 只读数组，两个条目；path 与标签唯一，不接受任意外部 URL |
 | `AppProvidersProps` | `app/app-providers.tsx` | 必填 `children: ReactNode` |
 | `SidebarMenuProps` | `layouts/sidebar-menu.tsx` | 可选 `selectedPath: BusinessPath`；必填 `onNavigate: (path: BusinessPath) => void` |
-| `StaticBusinessPageProps` | `shared/components/static-business-page.tsx` | 必填 `title: string`，由固定路由配置提供 |
+| `StaticBusinessPageProps` | `shared/components/static-business-page.tsx` | 必填 `title: string`，由共享导航元数据提供 |
 | React 与根节点类型 | 依赖库 | `ReactElement`、`ReactNode` 来自 React，`Root` 来自 react-dom/client，不重复定义 |
 
 ### 逐函数签名与中文注释草稿
@@ -323,13 +323,13 @@ specs/001-project-bootstrap/
 | `app/App.tsx`：`App` | 无参数；返回 `ReactElement` | 组合中文界面配置和唯一的应用路由入口。 | 渲染 `AppProviders` 包裹 `RouterProvider`；使用模块初始化时创建的路由实例，不在每次渲染重建。 | T-003／VC-001 |
 | `app/app-providers.tsx`：`AppProviders` | `props: AppProvidersProps`；返回 `ReactElement` | 为静态页面统一设置 Ant Design 简体中文和基础主题。 | 配置 `ConfigProvider` 中文 locale 与基础令牌 → 渲染 children；无 QueryClient、请求或副作用。 | T-003／VC-001 |
 | `app/router.tsx`：`createAppRouter` | 无参数；返回 `ReturnType<typeof createBrowserRouter>` | 集中定义应用路由，让菜单与页面沿用既定地址。 | 配置 `/` 的 `Navigate` 替换跳转、`AdminLayout` 子路由、两个页面及 `NotFoundPage`；子路由配置 `RouteErrorFallback` 以保留父布局，布局自身失败也使用安全恢复出口；调用 `createBrowserRouter`。 | T-003／VC-001、VC-002 |
-| `app/navigation.ts`：`resolveNavigation` | 必填 `pathname: string`；返回 `NavigationItem \| undefined` | 从当前路径派生导航项，避免菜单与标题分别维护。 | 去除末尾多余斜杠后按固定 path 查找 `NAVIGATION_ITEMS`；未知路径返回 undefined；不修改 URL、无外部调用。 | T-003／VC-001、VC-002 |
+| `shared/navigation/navigation.ts`：`resolveNavigation` | 必填 `pathname: string`；返回 `NavigationItem \| undefined` | 从当前路径派生导航项，避免菜单与标题分别维护。 | 去除末尾多余斜杠后按固定 path 查找 `NAVIGATION_ITEMS`；未知路径返回 undefined；不修改 URL、无外部调用。 | T-003／VC-001、VC-002 |
 | `layouts/admin-layout.tsx`：`AdminLayout` | 无参数；返回 `ReactElement` | 提供统一侧栏和内容容器，使页面只关注自身内容。 | `useLocation` → `resolveNavigation` → 派生选中键与文档标题；`useEffect` 更新 `document.title`；`useNavigate` 提供导航回调；组合 Layout、`SidebarMenu` 与 `Outlet`。 | T-003／VC-001、VC-002 |
 | `layouts/sidebar-menu.tsx`：`SidebarMenu` | `props: SidebarMenuProps`；返回 `ReactElement` | 渲染业务菜单并只允许导航至登记过的路径。 | 根据 `NAVIGATION_ITEMS` 配置 Menu，selectedPath 决定 selectedKeys；点击调用局部 `handleMenuSelect`。 | T-003／VC-001 |
 | 同上：局部 `handleMenuSelect` | `event: { key: string }`；返回 `void` | 校验菜单键后通知父布局导航，防止任意键进入路由。 | 在固定导航数组中找到 key 对应项 → 有效才调用 `props.onNavigate(item.path)`；否则忽略。 | T-003／VC-001 |
 | `shared/components/static-business-page.tsx`：`StaticBusinessPage` | `props: StaticBusinessPageProps`；返回 `ReactElement` | 复用两个页面的最小语义化标题，保持内容一致。 | 渲染包含 title 的 h1 或 Ant Design 标题；无额外数据、操作或函数调用。 | T-003／VC-001 |
-| `features/orders/pages/order-management-page.tsx`：`OrderManagementPage` | 无参数；返回 `ReactElement` | 提供订单管理的路由占位内容，业务功能以后填充。 | 从订单导航项取得 title → 调用 `StaticBusinessPage`；不导入订单业务占位文件。 | T-003／VC-001、VC-004 |
-| `features/export-tasks/pages/task-management-page.tsx`：`TaskManagementPage` | 无参数；返回 `ReactElement` | 提供任务管理的路由占位内容，任务功能以后填充。 | 从任务导航项取得 title → 调用 `StaticBusinessPage`；不导入任务业务占位文件。 | T-003／VC-001、VC-004 |
+| `features/orders/pages/order-management-page.tsx`：`OrderManagementPage` | 无参数；返回 `ReactElement` | 提供订单管理的路由占位内容，业务功能以后填充。 | 从 `shared/navigation/navigation.ts` 的订单导航项取得 title → 调用 `StaticBusinessPage`；不导入 app 或订单业务占位文件。 | T-003／VC-001、VC-004 |
+| `features/export-tasks/pages/task-management-page.tsx`：`TaskManagementPage` | 无参数；返回 `ReactElement` | 提供任务管理的路由占位内容，任务功能以后填充。 | 从 `shared/navigation/navigation.ts` 的任务导航项取得 title → 调用 `StaticBusinessPage`；不导入 app 或任务业务占位文件。 | T-003／VC-001、VC-004 |
 | `pages/not-found-page.tsx`：`NotFoundPage` | 无参数；返回 `ReactElement` | 未知地址显示轻量结果和明确返回入口。 | 渲染 Ant Design Result 404 与 `/orders` 的 Link；不创建独立 403/500 页面。 | T-003／VC-002 |
 | `app/route-error-fallback.tsx`：`RouteErrorFallback` | 无参数；返回 `ReactElement` | 在路由渲染异常时给出安全的恢复入口，不泄露异常细节。 | 在现有容器中显示简短错误提示与 `/orders` 的普通同源链接，重新加载恢复；不输出异常原文。 | T-003／VC-002 |
 
@@ -346,15 +346,17 @@ index.html
       → AppProviders（Ant Design 中文配置）
       → RouterProvider（唯一静态路由实例）
         → AdminLayout
-          → resolveNavigation → 选中菜单与文档标题
-          → SidebarMenu → handleMenuSelect → onNavigate → Router
+          → shared/navigation.resolveNavigation → 选中菜单与文档标题
+          → SidebarMenu（读取共享导航元数据）→ handleMenuSelect → onNavigate → Router
           → Outlet → OrderManagementPage 或 TaskManagementPage
-            → StaticBusinessPage
+            → shared/navigation.NAVIGATION_ITEMS → 标题 → StaticBusinessPage
           → 未知路由：NotFoundPage
         → 渲染异常：RouteErrorFallback
 ```
 
-前端依赖：app 组合布局与页面；页面使用本期共享标题和静态导航配置；占位的业务 API、Hook 与用例均不被导入。
+前端依赖：app 组合布局与页面；路由、布局、菜单与业务页面统一读取 `shared/navigation/navigation.ts` 的类型和导航元数据，页面使用共享标题组件。
+shared 导航模块只定义静态配置、类型与路径匹配，不导入 app、layouts 或 features；layouts 和 features 不反向依赖 app，app 保持应用组合职责。
+占位的业务 API、Hook 与用例均不被导入。
 页面不手动拼装 API URL，路由地址来自导航元数据。无后端调用链。
 
 未来后端依赖方向为：传输层 → 应用层 → 领域与端口；基础设施实现端口，外层配置负责装配。

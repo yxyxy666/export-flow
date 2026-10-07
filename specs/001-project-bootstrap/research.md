@@ -16,7 +16,7 @@
 | 事项 | 比较与建议 | 状态与影响 |
 | --- | --- | --- |
 | 工程根目录 | 相比单一混合 src，使用根级 frontend/backend，便于各自配置、构建和未来测试；避免前后端依赖混装 | 候选结构，随 plan 审批；实施后更新项目地图 |
-| 前端模块布局 | app 负责组合，layouts 负责导航与容器，features 按业务分组，shared 只承载明确共用边界；不采用全局大 utils/store | 沿用工程原则的结构提案 |
+| 前端模块布局 | app 负责组合，layouts 负责导航与容器，features 按业务分组；共享导航元数据位于 `shared/navigation/navigation.ts`，供路由、布局与页面共用，不反向依赖 app、layouts 或 features；不采用全局大 utils/store | 沿用工程原则的结构提案 |
 | 后端布局 | 在同一未来 Maven 模块内按 orders/exporttasks/dispatch/worker 分业务能力，各能力内部按 api/application/domain/port/infrastructure 分层；不拆多服务 | 只定文件归属，不决定业务协议或部署拓扑 |
 | 后端包名 | 建议 `com.exportflow`，不假设公司域名；目录符合 Java 包名惯例 | 候选命名，随核心规格审批；后端依赖及 Maven 坐标后续确定 |
 | 后端初始化深度 | 可运行空服务仍需要依赖、启动与运行验证；本轮用户强调结构，建议仅职责占位，POM 也明确未配置 | 本轮不运行 Maven 或 Java，避免把空文件宣称为初始化成功的服务 |

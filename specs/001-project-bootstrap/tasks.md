@@ -66,7 +66,7 @@
 | --- | --- | --- | --- | --- | --- |
 | VC-001 | [`AC-041`](../../docs/product/acceptance-criteria.md#ac-041)、[`AC-057`](../../docs/product/acceptance-criteria.md#ac-057)、[`SC-014`](../../docs/product/acceptance-criteria.md#sc-014) | 未执行 | 菜单切换、键盘导航、路由直接访问、刷新、后退前进、查看标题与视口 | `navigation.md`、`orders.png`、`export-tasks.png` | 无 |
 | VC-002 | [`AC-029`](../../docs/product/acceptance-criteria.md#ac-029)、[`AC-041`](../../docs/product/acceptance-criteria.md#ac-041) | 未执行 | `/` 重定向、未知地址、404 返回、恢复入口和未选中菜单核对 | `navigation.md`、`not-found.png` | 无 |
-| VC-003 | [`AC-058`](../../docs/product/acceptance-criteria.md#ac-058)、[`SC-014`](../../docs/product/acceptance-criteria.md#sc-014) | 未执行 | 对照 plan 的目录与全部文件表；检查占位文件不含实现且未被导入 | `structure.md` | 无 |
+| VC-003 | [`AC-058`](../../docs/product/acceptance-criteria.md#ac-058)、[`SC-014`](../../docs/product/acceptance-criteria.md#sc-014) | 未执行 | 对照 plan 的目录与全部文件表；检查占位文件不含实现且未被导入；核对导航模块位于 shared，shared 导航不依赖 app、layouts 或 features，layouts 和 features 不反向依赖 app | `structure.md` | 无 |
 | VC-004 | [`AC-059`](../../docs/product/acceptance-criteria.md#ac-059)、[`SC-014`](../../docs/product/acceptance-criteria.md#sc-014) | 未执行 | 无后端地址配置运行；查看浏览器 Network 中无 API、SSE、轮询；不操作现有容器 | `network.md` | 无 |
 | VC-005 | [`SC-014`](../../docs/product/acceptance-criteria.md#sc-014) | 未执行 | 冻结安装、typecheck、build、开发与 preview；具体命令见 quickstart | `environment.md`、`commands.log` | 无 |
 
@@ -81,7 +81,7 @@
 ## 阶段 2：用户故事 1——静态前端（P1）
 
 - [ ] T-002 [结构与启动] 获批后按 plan 创建 `.gitignore`、前端 package、Vite/TypeScript 配置、HTML 与 main，安装最小前端依赖并生成锁文件；关联 [`AC-058`](../../docs/product/acceptance-criteria.md#ac-058)、[`AC-059`](../../docs/product/acceptance-criteria.md#ac-059)。不生成测试配置或后台配置。
-- [ ] T-003 [导航与文字页面] 创建 plan 中全部实际前端模块；完成静态 Provider、导航、布局、两个占位页、轻量 404、路由错误恢复和基础样式。关联 [`AC-029`](../../docs/product/acceptance-criteria.md#ac-029)、[`AC-041`](../../docs/product/acceptance-criteria.md#ac-041)、[`AC-057`](../../docs/product/acceptance-criteria.md#ac-057)、[`AC-058`](../../docs/product/acceptance-criteria.md#ac-058)、[`AC-059`](../../docs/product/acceptance-criteria.md#ac-059)。
+- [ ] T-003 [导航与文字页面] 创建 plan 中全部实际前端模块；在 `shared/navigation/navigation.ts` 定义共享导航元数据与路径匹配，路由、布局和页面从 shared 读取，layouts 和 features 不反向依赖 app；完成静态 Provider、导航、布局、两个占位页、轻量 404、路由错误恢复和基础样式。关联 [`AC-029`](../../docs/product/acceptance-criteria.md#ac-029)、[`AC-041`](../../docs/product/acceptance-criteria.md#ac-041)、[`AC-057`](../../docs/product/acceptance-criteria.md#ac-057)、[`AC-058`](../../docs/product/acceptance-criteria.md#ac-058)、[`AC-059`](../../docs/product/acceptance-criteria.md#ac-059)。
 
 本阶段按照用户限定不执行测试先行，不创建测试代码；最终静态验证仍须执行。
 
