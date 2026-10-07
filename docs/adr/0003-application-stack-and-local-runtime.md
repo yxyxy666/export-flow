@@ -25,12 +25,12 @@
 
 ### 运行与交付边界
 
-本 ADR 不决定本地启动、容器、CI、打包、产物保存或发布方式。2026-10-04 项目负责人已确认开发阶段复用示例项目现有中间件容器，具体环境见[容器与本地启动规则](../rules/container.md#当前开发环境已确认)；当前项目自身的容器方案与其余交付事项仍待后续决策。
+本 ADR 不决定本地启动、容器、CI、打包、产物保存或发布方式。2026-10-04 项目负责人已确认开发阶段复用示例项目现有中间件容器，具体环境见[容器与本地启动规则](../rules/container.md#当前开发环境已确认)；宿主机启动、本地构建与产物保存已由[ADR-0009](0009-engineering-runtime-and-progress-notification.md)定稿；应用Compose和远程发布明确延期。
 
 ## 后果
 
-MySQL 任务表继续提供持久状态；RabbitMQ 负责任务命令交付，Redis 只缓存最新进度。跨实例进度通知等未决运行细节仍须评审，不能把缓存更新视为可靠广播。
+MySQL 任务表继续提供持久状态；RabbitMQ 负责任务命令交付，Redis 只缓存最新进度。跨实例通知方向与参数由[ADR-0009](0009-engineering-runtime-and-progress-notification.md)接受，后续功能规格再展开API和数据契约；不能把缓存更新视为可靠广播。
 
-本地文件存储简化下载流程，但文件共享和持久化方式尚待运行方案确定。直接链接下载避免大文件进入前端 JavaScript 内存；由于前端不读取下载响应体，下载失败只依赖浏览器 HTTP 行为和服务端日志定位。
+本地文件存储简化下载流程，但本期采用同主机受控持久目录，跨主机存储延期，见[ADR-0008](0008-worker-execution-lease-and-recovery.md)。直接链接下载避免大文件进入前端 JavaScript 内存；由于前端不读取下载响应体，下载失败只依赖浏览器 HTTP 行为和服务端日志定位。
 
 本决策对应 [`docs/rules/frontend.md`](../rules/frontend.md)、[`docs/rules/backend.md`](../rules/backend.md)、[`docs/rules/build.md`](../rules/build.md) 和 [`docs/rules/container.md`](../rules/container.md)。

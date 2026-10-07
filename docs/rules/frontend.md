@@ -6,7 +6,7 @@
 
 - 已确认的前端选型见 [`ADR-0002`](../adr/0002-frontend-stack-and-test-scope.md)：React、TypeScript、Vite、`pnpm`、Ant Design、React Router、TanStack Query、React Hook Form + Zod；测试使用 Vitest、Testing Library 和 MSW。Node.js 使用 22 LTS 或经 ADR 修订的版本，依赖通过锁文件固定。
 - 路由、服务端状态、表单、组件和 API client 分工明确；新增依赖须检查维护状态、许可、体积与现有方案的重叠。
-- 前端功能仍遵守 [项目宪法](../../.specify/memory/constitution.md) 的规格审批和测试先行门禁；测试设计遵循 [`testing.md`](testing.md)，CI 与构建规则暂未制定，见 [`build.md`](build.md)。
+- 前端功能仍遵守 [项目宪法](../../.specify/memory/constitution.md) 的规格审批和测试先行门禁；测试设计遵循 [`testing.md`](testing.md)，本地构建门禁已经确定，托管CI延期，见 [`build.md`](build.md)。
 
 ## 架构与状态
 
@@ -29,6 +29,6 @@
 - 表单、表格、对话框和按钮使用语义化控件；键盘可操作、焦点可见且可恢复、错误与字段关联。禁用原因不得只放在 hover 提示；状态和进度不能只靠颜色表达。
 - 布局适应目标视口，窄屏主要操作与行上下文仍可理解。浏览器兼容范围、最小视口和性能目标由产品或获批验证方案确定，不在本规则写单次功能阈值。
 - 列表按服务端分页，不为页面展示加载完整数据集；重型非首屏能力按需加载。相同读请求尽量合并，旧响应不能覆盖新状态。
-- 测试设计覆盖键盘/焦点、异步乱序、错误恢复与前后端协议边界；具体 CI 执行范围和构建门禁待定。本期不设置浏览器端到端测试门禁，见 [`ADR-0002`](../adr/0002-frontend-stack-and-test-scope.md)。
+- 测试设计覆盖键盘/焦点、异步乱序、错误恢复与前后端协议边界；本期本地测试/类型检查/构建门禁见[构建规则](build.md)，托管CI延期。本期不设置浏览器端到端测试门禁，见 [`ADR-0002`](../adr/0002-frontend-stack-and-test-scope.md)。
 
 模块按业务能力组织；共享模块只承载稳定的跨功能复用代码，不建立无边界的通用目录。命名遵循 [`naming.md`](naming.md)。

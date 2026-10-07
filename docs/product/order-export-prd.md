@@ -2,13 +2,13 @@
 
 **创建日期**：2026-09-13
 
-**版本**：1.0.12
+**版本**：1.0.15
 
 **定稿日期**：2026-09-13
 
-**修订日期**：2026-10-04
+**修订日期**：2026-10-07
 
-**修订说明**：补充独立的项目初始化阶段：先交付静态导航和文字占位页，业务功能与后端接口后续实施。任务投递、认领与实时通知的实现细节归 ADR 或后续功能规格。
+**修订说明**：新增订单管理分阶段规格入口：查询、受理、后台执行、真实Excel与下载纳入本期规格。产品/技术建议已于2026-10-07按负责人要求定稿，规格和测试阶段仍需独立审批。
 
 **文档目的**：定义订单查询和 Excel 异步导出的产品需求，作为后续产品评审及前端、后端、测试方案编写的共同依据。
 
@@ -68,7 +68,7 @@ flowchart TD
 
 ## 5. 用户故事与验收场景
 
-以下链接中的新增标准仍待后续功能规格整体审批；尤其活跃优先默认排序与已确认排序存在冲突，评审前以已确认的创建时间排序为准。具体状态见 [`acceptance-criteria.md`](acceptance-criteria.md) 和 [`decisions-pending.md`](../decisions-pending.md)。
+以下活跃新增标准的产品口径已经确认；实施仍须对应功能规格及测试阶段审批。默认保持创建时间/ID倒序，活跃优先及依赖它的进度排序方案已撤出。具体状态见 [`acceptance-criteria.md`](acceptance-criteria.md) 和 [`decisions-pending.md`](../decisions-pending.md)。
 
 ### 5.1 用户故事一：查询和浏览订单（P1）
 
@@ -86,7 +86,7 @@ flowchart TD
 
 作为订单运营人员，我希望查看导出任务的状态和进度，并在任务完成后下载文件，以便掌握耗时导出的处理结果。
 
-验收标准：[`AC-012`](acceptance-criteria.md#ac-012)、[`AC-013`](acceptance-criteria.md#ac-013)、[`AC-014`](acceptance-criteria.md#ac-014)、[`AC-015`](acceptance-criteria.md#ac-015)、[`AC-026`](acceptance-criteria.md#ac-026)、[`AC-027`](acceptance-criteria.md#ac-027)、[`AC-028`](acceptance-criteria.md#ac-028)、[`AC-031`](acceptance-criteria.md#ac-031)、[`AC-037`](acceptance-criteria.md#ac-037)、[`AC-038`](acceptance-criteria.md#ac-038)、[`AC-039`](acceptance-criteria.md#ac-039)、[`AC-040`](acceptance-criteria.md#ac-040)、[`AC-042`](acceptance-criteria.md#ac-042)、[`AC-043`](acceptance-criteria.md#ac-043)、[`AC-044`](acceptance-criteria.md#ac-044)、[`AC-049`](acceptance-criteria.md#ac-049)。[`AC-036`](acceptance-criteria.md#ac-036) 是待产品决策的候选排序，不属于当前默认排序要求；依赖它的 [`AC-037`](acceptance-criteria.md#ac-037) 也不能单独获批实施。
+验收标准：[`AC-012`](acceptance-criteria.md#ac-012)、[`AC-013`](acceptance-criteria.md#ac-013)、[`AC-014`](acceptance-criteria.md#ac-014)、[`AC-015`](acceptance-criteria.md#ac-015)、[`AC-026`](acceptance-criteria.md#ac-026)、[`AC-027`](acceptance-criteria.md#ac-027)、[`AC-028`](acceptance-criteria.md#ac-028)、[`AC-031`](acceptance-criteria.md#ac-031)、[`AC-037`](acceptance-criteria.md#ac-037)、[`AC-038`](acceptance-criteria.md#ac-038)、[`AC-039`](acceptance-criteria.md#ac-039)、[`AC-040`](acceptance-criteria.md#ac-040)、[`AC-042`](acceptance-criteria.md#ac-042)、[`AC-043`](acceptance-criteria.md#ac-043)、[`AC-044`](acceptance-criteria.md#ac-044)、[`AC-049`](acceptance-criteria.md#ac-049)。[`AC-036`](acceptance-criteria.md#ac-036) 和依赖它的 [`AC-037`](acceptance-criteria.md#ac-037) 已撤出，编号不复用；不改变现行默认排序。
 
 ### 5.4 用户故事四：处理失败任务（P2）
 
@@ -112,11 +112,17 @@ flowchart TD
 
 阶段验收关联 [`AC-029`](acceptance-criteria.md#ac-029)、[`AC-041`](acceptance-criteria.md#ac-041)、[`AC-057`](acceptance-criteria.md#ac-057)、[`AC-058`](acceptance-criteria.md#ac-058)、[`AC-059`](acceptance-criteria.md#ac-059) 和 [`SC-014`](acceptance-criteria.md#sc-014)。2026-10-07 已授权执行既有基础骨架规格，实际验证与验收缺口见[任务清单](../../specs/001-project-bootstrap/tasks.md)。用户明确指定本阶段不编写测试代码，采用结构、构建和静态页面验证；例外不延伸到后续功能。
 
+### 6.1.2 订单管理分阶段规格（待评审）
+
+2026-10-07 项目负责人要求准备[订单管理与后端异步流程规格](../../specs/002-order-management/spec.md)：覆盖订单查询、筛选、分页、选择、字段配置、导出受理与后台处理流程；负责人追加要求本次加入真实Excel生成、文件校验发布、异常断点恢复及下载。目录、逐文件变动、函数名、参数、返回值与调用关系见[计划](../../specs/002-order-management/plan.md)。
+
+本期需求范围已经明确包含真实Excel；恢复与存储方案已在[ADR-0008](../adr/0008-worker-execution-lease-and-recovery.md)接受子集。阶段已确认条目关联 [`AC-060`](acceptance-criteria.md#ac-060)、[`AC-061`](acceptance-criteria.md#ac-061)、[`AC-064`](acceptance-criteria.md#ac-064)、[`AC-065`](acceptance-criteria.md#ac-065)、[`AC-067`](acceptance-criteria.md#ac-067)、[`AC-068`](acceptance-criteria.md#ac-068)、[`AC-069`](acceptance-criteria.md#ac-069)、[`AC-070`](acceptance-criteria.md#ac-070)、[`AC-071`](acceptance-criteria.md#ac-071)。已完成Excel行逐批写磁盘临时文件，完整关闭校验后原子改名正式结果；具体临时阶段见[Excel设计](../../specs/002-order-management/excel-design.md#sxssf内容与资源)。原未实现阶段候选撤出且编号不复用，见[验收基线](acceptance-criteria.md#订单管理分阶段交付候选)。完整任务列表、失败重试页面、SSE/Redis通知及用户暂停恢复留后续；本期提供单任务结果回执与直接下载。技术/产品决策已确认，见[决策记录](../../specs/002-order-management/decision-record.md)；两次开发门禁仍待单独批准，见[任务记录](../../specs/002-order-management/tasks.md#审批记录)。
+
 ### 6.2 筛选区
 
 | 筛选条件 | 说明 |
 | --- | --- |
-| 关键字 | 不区分英文大小写匹配订单号、客户姓名或手机号，并与其他条件使用“并且”关系；待订单页面规格整体审批 |
+| 关键字 | 不区分英文大小写匹配订单号、客户姓名或手机号，并与其他条件使用“并且”关系；产品口径已确认，实施依订单规格门禁 |
 | 订单号 | 精确匹配订单号 |
 | 订单状态 | 使用 8.1 节订单状态枚举 |
 | 销售渠道 | 使用 8.2 节销售渠道枚举 |
@@ -172,7 +178,7 @@ flowchart TD
 
 ## 7. 导出任务需求
 
-导出任务页面提供关键字搜索、状态筛选、任务表格和分页。关键字匹配任务编号或文件名；状态筛选包含“全部”、等待中、生成中、已完成和失败。搜索或筛选后从第一页查询，“全部”不附加状态条件；关键字搜索待任务页面规格整体审批。
+导出任务页面提供关键字搜索、状态筛选、任务表格和分页。关键字匹配任务编号或文件名；状态筛选包含“全部”、等待中、生成中、已完成和失败。搜索或筛选后从第一页查询，“全部”不附加状态条件；关键字搜索口径已确认，任务页面后续规格获批后实施。
 
 ### 7.1 导出任务列表字段
 
@@ -266,10 +272,10 @@ flowchart TD
 - 导出范围超过 200,000 条订单时，不允许创建导出任务。
 - 同一次导出提交的重复请求只能对应一个任务，不得产生重复文件。
 - 任务失败时必须保留可理解的错误摘要，并允许符合条件的用户重试。
-- 任务已创建但尚未开工时，不仅凭固定等待时间宣告失败或创建重复任务，见 [`AC-049`](acceptance-criteria.md#ac-049)。长期无法开始时的最终用户结果仍待决策。
+- 任务已创建但尚未开工时，不仅凭固定等待时间宣告失败或创建重复任务，见 [`AC-049`](acceptance-criteria.md#ac-049)。已SENT但长期无法开始只告警并受控运维修复，不按排队时长失败或复制命令。
 - 导出配置中必须至少选择一个字段；仅剩一个已选字段时不得继续取消。
 - 用户刷新页面或离开页面不影响任务在后台继续执行。
-- 导出任务页面可见且存在活跃任务时持续更新进度；没有活跃任务后停止实时更新，后续有新活动时恢复。本期不持续发起周期性查询；具体连接与恢复契约留待功能规格确定。
+- 导出任务页面可见且存在活跃任务时持续更新进度；没有活跃任务后停止实时更新，后续有新活动时恢复。本期不持续发起周期性查询；连接参数与可靠通知方向见[ADR-0009](../adr/0009-engineering-runtime-and-progress-notification.md)，API/事件结构由后续任务页规格展开。
 - 页面、Excel 和文件名统一使用 `Asia/Hong_Kong` 时区展示。
 - 本项目定位为本地学习项目，使用合成数据；本期不引入登录、认证授权、权限审计、生产监控或合规评审，不修改任务和文件永久保留要求。
 - 合成订单在初始化后只读，本期不提供会改变订单筛选结果的数据写入入口。
@@ -284,8 +290,8 @@ MVP 的唯一成功标准定义为 [`SC-001`](acceptance-criteria.md#sc-001)、[
 
 ## 12. 待确认事项
 
-任务进度须按需实时更新，不持续发起周期性查询。具体技术通道见 [`ADR-0005`](../adr/0005-backend-stack-and-progress-cache.md)；连接参数、异常恢复和其他未决事项记录在 [`docs/decisions-pending.md`](../decisions-pending.md)，不得在实现中隐式决定。
+当前待选技术事项已按负责人建议定稿，见[决策记录](../../specs/002-order-management/decision-record.md)、[ADR-0008](../adr/0008-worker-execution-lease-and-recovery.md)和[ADR-0009](../adr/0009-engineering-runtime-and-progress-notification.md)。持续通知仍采用按需SSE，不周期性查询；用户暂停、跨主机存储和完整任务页明确延期。新的歧义记录在[待确认决策](../decisions-pending.md)，未运行验证不能标通过。
 
 ## 13. 后续文档关系
 
-本文 `1.0.0` 版本是首个正式产品需求基线，当前版本为 `1.0.12`。后续前端、后端和测试文档均以当前版本和 [`acceptance-criteria.md`](acceptance-criteria.md) 为上游依据；产品需求发生变化时，应先更新二者并升级版本号，再同步调整下游文档。
+本文 `1.0.0` 版本是首个正式产品需求基线，当前版本为 `1.0.15`。后续前端、后端和测试文档均以当前版本和 [`acceptance-criteria.md`](acceptance-criteria.md) 为上游依据；产品需求发生变化时，应先更新二者并升级版本号，再同步调整下游文档。

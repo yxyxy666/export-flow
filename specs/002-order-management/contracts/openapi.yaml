@@ -1,0 +1,832 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "订单管理分阶段接口设计",
+    "version": "0.3.0-draft",
+    "description": "技术/产品决策已确认，规格整体未获审批，不代表已实现。包含订单、创建、单任务摘要与成功Excel直接下载；逐批临时文件写入、关闭校验及原子改名见Excel设计。"
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "paths": {
+    "/api/v1/orders": {
+      "get": {
+        "operationId": "queryOrders",
+        "summary": "查询订单",
+        "parameters": [
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "orderNo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "PAID",
+                "SHIPPED",
+                "COMPLETED",
+                "CANCELED"
+              ]
+            }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "WEB",
+                "APP",
+                "STORE",
+                "PARTNER"
+              ]
+            }
+          },
+          {
+            "name": "createdFrom",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/UtcInstant"
+            }
+          },
+          {
+            "name": "createdTo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/UtcInstant"
+            }
+          },
+          {
+            "name": "minAmount",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Money"
+            }
+          },
+          {
+            "name": "maxAmount",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Money"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000,
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                20,
+                50,
+                100
+              ],
+              "default": 20
+            }
+          },
+          {
+            "name": "sortDirection",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ASC",
+                "DESC"
+              ],
+              "default": "DESC"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "稳定分页结果",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "安全错误；创建结果不明的 outcome 为 UNKNOWN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "安全错误；创建结果不明的 outcome 为 UNKNOWN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/export-tasks": {
+      "post": {
+        "operationId": "createExportTask",
+        "summary": "事务提交后确认受理",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9._:-]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "同键同请求重放，当前摘要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskSummary"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "首次创建，已确认提交",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskSummary"
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "单任务摘要相对URL"
+              }
+            }
+          },
+          "400": {
+            "description": "安全错误；创建结果不明的 outcome 为 UNKNOWN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "安全错误；创建结果不明的 outcome 为 UNKNOWN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "事务前拒绝超出16MiB UTF8 JSON文档，REQUEST_TOO_LARGE，outcome=REJECTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "安全错误；创建结果不明的 outcome 为 UNKNOWN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "安全错误；创建结果不明的 outcome 为 UNKNOWN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "安全错误；创建结果不明的 outcome 为 UNKNOWN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/export-tasks/{taskId}": {
+      "get": {
+        "operationId": "getExportTask",
+        "summary": "读取权威受理回执",
+        "parameters": [
+          {
+            "name": "taskId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "当前权威摘要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskSummary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "安全错误；创建结果不明的 outcome 为 UNKNOWN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "安全错误；创建结果不明的 outcome 为 UNKNOWN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "安全错误；创建结果不明的 outcome 为 UNKNOWN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/export-tasks/{taskId}/file": {
+      "get": {
+        "operationId": "downloadExportFile",
+        "summary": "下载权威成功Excel",
+        "parameters": [
+          {
+            "name": "taskId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功不可变文件流",
+            "headers": {
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "安全fallback与UTF-8 filename*"
+              },
+              "Content-Length": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "非法UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "任务不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "非成功任务",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "成功引用文件缺失",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "安全文件IO错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "权威依赖不可读",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "OrderId": {
+        "type": "string",
+        "pattern": "^[1-9][0-9]{0,18}$"
+      },
+      "Money": {
+        "type": "string",
+        "pattern": "^(0|[1-9][0-9]{0,15})\\.[0-9]{2}$"
+      },
+      "UtcInstant": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+      },
+      "OrderFilter": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "keyword": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "orderNo": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "PAID",
+              "SHIPPED",
+              "COMPLETED",
+              "CANCELED"
+            ]
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "WEB",
+              "APP",
+              "STORE",
+              "PARTNER"
+            ]
+          },
+          "createdFrom": {
+            "$ref": "#/components/schemas/UtcInstant"
+          },
+          "createdTo": {
+            "$ref": "#/components/schemas/UtcInstant"
+          },
+          "minAmount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "maxAmount": {
+            "$ref": "#/components/schemas/Money"
+          }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "orderNo",
+          "customerName",
+          "customerPhone",
+          "status",
+          "channel",
+          "amount",
+          "currency",
+          "region",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/OrderId"
+          },
+          "orderNo": {
+            "type": "string"
+          },
+          "customerName": {
+            "type": "string"
+          },
+          "customerPhone": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "未知输出值显示未知"
+          },
+          "channel": {
+            "type": "string",
+            "description": "未知输出值显示未知"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "currency": {
+            "const": "CNY",
+            "type": "string"
+          },
+          "region": {
+            "type": "string"
+          },
+          "createdAt": {
+            "$ref": "#/components/schemas/UtcInstant"
+          }
+        }
+      },
+      "OrderPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Order"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000
+          },
+          "pageSize": {
+            "type": "integer",
+            "enum": [
+              20,
+              50,
+              100
+            ]
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        }
+      },
+      "ExportField": {
+        "type": "string",
+        "enum": [
+          "orderNo",
+          "customerName",
+          "customerPhone",
+          "status",
+          "channel",
+          "amount",
+          "currency",
+          "region",
+          "createdAt"
+        ]
+      },
+      "CreateExportRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "scope",
+          "fields"
+        ],
+        "properties": {
+          "scope": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SelectedScope"
+              },
+              {
+                "$ref": "#/components/schemas/FilteredScope"
+              }
+            ],
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "SELECTED": "#/components/schemas/SelectedScope",
+                "FILTERED": "#/components/schemas/FilteredScope"
+              }
+            }
+          },
+          "fields": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 9,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/ExportField"
+            }
+          }
+        }
+      },
+      "SelectedScope": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "orderIds"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "SELECTED"
+          },
+          "orderIds": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 200000,
+            "items": {
+              "$ref": "#/components/schemas/OrderId"
+            }
+          }
+        }
+      },
+      "FilteredScope": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "filter"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "FILTERED"
+          },
+          "filter": {
+            "$ref": "#/components/schemas/OrderFilter"
+          }
+        }
+      },
+      "TaskSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "taskId",
+          "taskNo",
+          "scopeType",
+          "totalCount",
+          "fields",
+          "status",
+          "processedCount",
+          "progressPercent",
+          "createdAt"
+        ],
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "taskNo": {
+            "type": "string"
+          },
+          "scopeType": {
+            "type": "string",
+            "enum": [
+              "SELECTED",
+              "FILTERED"
+            ]
+          },
+          "totalCount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200000
+          },
+          "fields": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 9,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/ExportField"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "RUNNING",
+              "SUCCEEDED",
+              "FAILED"
+            ]
+          },
+          "processedCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 200000
+          },
+          "progressPercent": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "createdAt": {
+            "$ref": "#/components/schemas/UtcInstant"
+          },
+          "finishedAt": {
+            "$ref": "#/components/schemas/UtcInstant"
+          },
+          "errorCode": {
+            "type": "string"
+          },
+          "errorSummary": {
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "fileSize": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "ApiError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "message",
+          "traceId"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "REJECTED",
+              "UNKNOWN"
+            ]
+          },
+          "fieldErrors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "field",
+                "message"
+              ],
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "details": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "currentCount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "limit": {
+                "type": "integer",
+                "const": 200000
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

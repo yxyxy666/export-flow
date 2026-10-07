@@ -5,7 +5,7 @@
 本文只规定后端长期适用的技术边界和统一工程要求。订单导出本次流程、状态转换、接口字段、失败出口与运行参数由[产品需求](../product/order-export-prd.md)、[验收基线](../product/acceptance-criteria.md)、已批准 ADR 和未来获批的功能规格分别承载。
 
 - 已接受的基础技术栈见 [`ADR-0003`](../adr/0003-application-stack-and-local-runtime.md)：Java 21、Spring Boot 3、Maven Wrapper、MySQL 8.4 LTS、Apache POI `SXSSF` 和本地挂载文件目录。API 使用 `/api/v1` JSON REST 与 OpenAPI；下载使用同源直接链接。
-- MyBatis、Flyway 和 Redis 最新进度缓存的选型见 [`ADR-0005`](../adr/0005-backend-stack-and-progress-cache.md)；RabbitMQ 任务队列的选型见 [`ADR-0004`](../adr/0004-rabbitmq-task-queue.md)。具体拓扑、容量、进度通知和恢复契约仍待决策，选型确认不构成测试或实现授权。
+- MyBatis、Flyway 和 Redis 最新进度缓存的选型见 [`ADR-0005`](../adr/0005-backend-stack-and-progress-cache.md)；RabbitMQ 任务队列的选型见 [`ADR-0004`](../adr/0004-rabbitmq-task-queue.md)。本地拓扑、执行恢复及后续进度通知方向已由[ADR-0008](../adr/0008-worker-execution-lease-and-recovery.md)和[ADR-0009](../adr/0009-engineering-runtime-and-progress-notification.md)确定，参数见[决策记录](../../specs/002-order-management/decision-record.md)；选型确认不构成测试或实现授权。
 - 本地、测试和容器环境涉及关键持久化行为时使用真实 MySQL，不以 H2 替代。数据库、消息系统和缓存的版本、拓扑与容量按获批 ADR 和项目工具链规则锁定。
 - 具体构建、测试、容器和命名要求分别见 [`build.md`](build.md)、[`testing.md`](testing.md)、[`container.md`](container.md) 与 [`naming.md`](naming.md)。未决事项记录在[待确认决策](../decisions-pending.md)，不得在实现中隐式决定。
 
@@ -27,7 +27,7 @@
 - 幂等操作必须用持久化唯一约束和事务裁决并发，不能只靠“先查再写”；提交结果不明时不得宣称成功或失败。若用户可见的成功依赖数据库记录，必须确认事务提交后才响应成功。
 - MySQL 是持久业务状态的权威来源。跨数据库与消息系统的交接若使用 Outbox，业务记录与待投递事件同事务提交；发布确认、正确路由和 Outbox 标记是独立阶段。不得把生产者发布确认当作消费者确认。
 - 消息消费按至少一次交付设计：处理器必须幂等，不能假定消息只到达一次。消费确认必须晚于获批的可恢复边界；仅收到消息不能作为业务完成依据。重试、预取、租约、超时和死信的数值需经方案验证，不在统一规则中预设。
-- 长时间文件生成不得持有数据库事务或行锁。采用有界流式处理，不将完整任务内容保留在内存中；生成内容写入任务专属临时文件，关闭并校验后安全发布，持久化成功状态前必须验证产物。失败与清理不得误删仍有效的正式文件或仍被恢复断点引用的临时文件。具体缓冲与读写策略留待功能规格确定。
+- 长时间文件生成不得持有数据库事务或行锁。采用有界流式处理，不将完整任务内容保留在内存中；生成内容写入任务专属临时文件，关闭并校验后安全发布，持久化成功状态前必须验证产物。失败与清理不得误删仍有效的正式文件或仍被恢复断点引用的临时文件。缓冲/断点/文件策略见[Excel方案](../../specs/002-order-management/excel-design.md)，仍按规格与测试阶段门禁实施。
 - 缓存不是任务状态事实源；缓存写入失败不能回滚已提交的权威状态。实时连接不得持有数据库事务或消息消费租约，断开与超时必须释放资源。
 
 ## 数据库、运行与安全
@@ -40,4 +40,4 @@
 
 ## 质量门禁
 
-实现前遵守 [项目宪法](../../.specify/memory/constitution.md) 的规格审批和测试先行门禁。测试范围与证据遵循 [`testing.md`](testing.md)；具体 CI、构建、打包和产物门禁尚未制定，见 [`build.md`](build.md)。不以 mock、内存队列或 H2 替代关键一致性边界的集成验证。
+实现前遵守 [项目宪法](../../.specify/memory/constitution.md) 的规格审批和测试先行门禁。测试范围与证据遵循 [`testing.md`](testing.md)；本地构建、打包和产物门禁已确定，托管CI与远程发布延期，见 [`build.md`](build.md)。不以 mock、内存队列或 H2 替代关键一致性边界的集成验证。

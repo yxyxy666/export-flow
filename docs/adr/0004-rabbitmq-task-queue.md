@@ -1,6 +1,6 @@
 # ADR-0004 RabbitMQ 导出任务队列
 
-- 状态：已接受（任务命令队列选型与职责边界）；拓扑、运行参数与执行恢复仍待评审，不构成测试或实现授权
+- 状态：已接受（任务命令队列选型与职责边界）；拓扑/参数由ADR-0009定稿，执行恢复子集由ADR-0008接受，不构成测试或实现授权
 - 日期：2026-09-22
 - 适用范围：RabbitMQ 承担任务命令队列；不改变 MySQL 事实源及事务 Outbox。进度缓存见 [`ADR-0005`](0005-backend-stack-and-progress-cache.md)。
 
@@ -11,19 +11,19 @@
 ## 决策
 
 - MySQL 仍保存任务、幂等记录、范围快照和命令 Outbox。创建/重试时这些记录在同一事务提交；只有确认任务已提交，才能回复创建成功和可查询的任务 ID。HTTP 不等待消息入队或文件生成。事务结果不明时保留原提交标识供幂等核对，不把网络中断判作创建失败。
-- outbox dispatcher 将未发布的任务命令发送至 RabbitMQ。只有收到 broker 的发布确认，并确认消息已正确路由后，才能条件更新 outbox 为已发布；失败在投递窗口内保留 outbox 并重试。到期自动失败与关闭命令按 [`ADR-0007`](0007-outbox-dispatch-retry.md) 裁决。具体 exchange、queue、routing key、持久化和发布确认配置待审批。
+- outbox dispatcher 将未发布的任务命令发送至 RabbitMQ。只有收到 broker 的发布确认，并确认消息已正确路由后，才能条件更新 outbox 为已发布；失败在投递窗口内保留 outbox 并重试。到期自动失败与关闭命令按 [`ADR-0007`](0007-outbox-dispatch-retry.md) 裁决。具体exchange/queue/routing key/保留策略已经在[ADR-0009](0009-engineering-runtime-and-progress-notification.md)与[消息契约](../../specs/002-order-management/contracts/export-command.md)定稿。
 - Worker 从 RabbitMQ 消费任务命令，按任务 ID 读取 MySQL 权威快照，并以 MySQL 条件状态更新取得执行权。消息可能重复投递；文件生成、状态推进和重复消息处理必须幂等。
-- 任务到达终态并成功提交，或 MySQL 权威状态证明消息无需处理后，才手动确认消费。处理进程中断或连接断开可能导致重新投递；不能把消息确认等同业务成功。Worker 已认领后的重试、租约、尝试上限、死信与执行恢复策略待审批，不预设具体数值。
-- RabbitMQ 消息只携带定位任务、去重和版本处理所需的最少信息，不携带客户信息、完整筛选、幂等键或文件路径；具体字段与版本契约留待功能规格确定。
-- RabbitMQ 当前只明确用于导出任务命令。进度缓存选型见 [`ADR-0005`](0005-backend-stack-and-progress-cache.md)，跨实例 SSE 通知机制尚未决定，不默认让工作队列分摊进度通知。
+- 任务到达终态并成功提交，或 MySQL 权威状态证明消息无需处理后，才手动确认消费。处理进程中断或连接断开可能导致重新投递；不能把消息确认等同业务成功。Worker异常接管/租约/预算见[ADR-0008](0008-worker-execution-lease-and-recovery.md)，参数及坏消息保留/停止消费槽见[ADR-0009](0009-engineering-runtime-and-progress-notification.md)；本期无自动死信删除原命令。
+- RabbitMQ消息只携带定位任务、去重和版本处理所需最少信息，不携带客户信息、完整筛选、幂等键或文件路径；当前字段与版本设计见[消息契约](../../specs/002-order-management/contracts/export-command.md)，实施仍随整体规格审批。
+- RabbitMQ 当前只明确用于导出任务命令。进度缓存选型见 [`ADR-0005`](0005-backend-stack-and-progress-cache.md)，后续跨实例SSE通知由[ADR-0009](0009-engineering-runtime-and-progress-notification.md)选择独立进度Outbox与广播拓扑，原工作队列不分摊通知。
 
 ## 后果与待定边界
 
-架构包含 RabbitMQ 任务队列和 Redis 进度缓存两个基础设施。队列与缓存职责不同；进度广播、断线回补尚须评审，不能把缓存更新当作可靠通知。
+架构包含 RabbitMQ 任务队列和 Redis 进度缓存两个基础设施。队列与缓存职责不同；进度广播和断线回补方向已决，具体后续功能规格仍须审批，不能把缓存更新当作可靠通知。
 
-MySQL 提交后、RabbitMQ 发布前由 outbox 补投；发布确认后、outbox 标记前可能重复发布。未确认发送且未开工的任务按 [`ADR-0007`](0007-outbox-dispatch-retry.md) 的总窗口自动失败并停止补投，保留诊断记录。原命令已确认发送但任务尚未开工时，按 [`ADR-0006`](0006-broker-owned-pending-delivery.md) 交由 RabbitMQ 投递与未确认消息重交付；不按等待时间自动补投。Worker 已开始后的恢复仍待决定。
+MySQL 提交后、RabbitMQ 发布前由 outbox 补投；发布确认后、outbox 标记前可能重复发布。未确认发送且未开工的任务按 [`ADR-0007`](0007-outbox-dispatch-retry.md) 的总窗口自动失败并停止补投，保留诊断记录。原命令已确认发送但任务尚未开工时，按 [`ADR-0006`](0006-broker-owned-pending-delivery.md) 交由 RabbitMQ 投递与未确认消息重交付；不按等待时间自动补投。Worker已开始后的异常恢复按[ADR-0008](0008-worker-execution-lease-and-recovery.md)接受子集。
 
-扫描、退避、dispatcher 领取租约与故障窗口的已接受原则见 [`ADR-0007`](0007-outbox-dispatch-retry.md)。该决策细化本 ADR 的补投机制；运行参数、具体 SQL 与 RabbitMQ 配置仍待确定，Worker 执行恢复仍须另行审批，不构成测试或实现授权。
+扫描、退避、dispatcher 领取租约与故障窗口的已接受原则见 [`ADR-0007`](0007-outbox-dispatch-retry.md)。该决策细化本 ADR 的补投机制；运行参数/SQL设计/RabbitMQ配置已在[决策记录](../../specs/002-order-management/decision-record.md)定稿，整体规格与测试阶段仍須分别审批，不构成测试或实现授权。
 
 ## 评审与回退
 

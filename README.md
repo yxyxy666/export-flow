@@ -12,6 +12,8 @@
 
 ## 项目启动
 
+2026-10-07 已修订[订单管理与后端异步流程规格草稿](specs/002-order-management/spec.md)，[计划](specs/002-order-management/plan.md)列明文件变动及函数签名，[任务清单](specs/002-order-management/tasks.md)记录验收映射与两次审批。本次草稿0.2包含真实Excel生成、异常恢复及下载，详细流程见[Excel方案](specs/002-order-management/excel-design.md)。当前仅准备文档；下方启动方式仍适用于既有静态骨架，不能据规格草稿认为订单接口或后端已实现。
+
 以下命令均在项目根目录执行，适用于 Windows PowerShell。当前静态前端可独立运行，无需启动后端、MySQL、RabbitMQ 或 Redis。
 
 ### 环境要求

@@ -59,7 +59,7 @@
 ## 工具与真实边界
 
 - 前端测试栈由 [`ADR-0002`](../adr/0002-frontend-stack-and-test-scope.md) 确定：Vitest、Testing Library 和 MSW。单元、组件、功能集成与契约测试各验证相应边界；本期不设置浏览器端到端测试门禁。
-- 后端测试工具基线仍待审批，候选为 JUnit Jupiter、AssertJ、Spring Boot Test、MockMvc 与 Testcontainers；候选不能当作已获批初始化要求。
+- 后端测试基线已由[ADR-0009](../adr/0009-engineering-runtime-and-progress-notification.md)确定为JUnit Jupiter、AssertJ、Spring Boot Test、MockMvc与Testcontainers；精确版本见[版本表](../../specs/002-order-management/dependency-versions.md)。选型确认不构成规格或测试代码生成授权。
 - 事务、锁、迁移、唯一约束和查询语义必须用隔离的真实 MySQL 验证。RabbitMQ 的发布/消费与 Redis 的缓存恢复须在对应真实依赖上验证；不得用 H2、mock repository、内存队列或内存缓存代替关键一致性测试。
 - 测试环境不依赖线上服务、真实密钥、共享数据库或前一用例残留。schema、队列和缓存数据须隔离；时间、ID 和并发次序可注入或由屏障控制。
 - API 与消息契约测试验证版本、错误结构、未知枚举、缺失字段和兼容策略。文件测试使用临时目录，验证关闭、可读性、安全发布、失败清理与下载边界。
@@ -68,7 +68,7 @@
 
 - 性能和资源 SC 使用独立配置、固定数据、预热、重复测量及环境记录；不能把普通 CI 的偶发运行时间当作产品性能证据。参考环境未获批准前，相应 SC 不能判定通过。
 - 测试数据、日志、截图和报告只使用合成信息，保留经脱敏的失败证据。接口时间断言指定 UTC，人类展示断言指定产品时区，不依赖机器默认时区。
-- 跳过、隔离和预期失败测试须记录原因、责任人和恢复条件；关键 AC/SC 不得长期跳过。具体 CI、构建及打包门禁尚未制定，见 [`build.md`](build.md)。
+- 跳过、隔离和预期失败测试须记录原因、责任人和恢复条件；关键 AC/SC 不得长期跳过。本期本地门禁与产物保存已经确定，远程CI和发布明确延期，见 [`build.md`](build.md)。
 
 订单导出的测试场景与追踪映射在规格阶段设计；规格获批后才编写和执行测试代码，
 测试阶段门禁通过并经项目负责人明确批准后才进入生产实现。
