@@ -4,17 +4,69 @@
 
 本仓库采用规格驱动开发方法和中文规格模板。项目原则位于 `.specify/memory/constitution.md`。当前技术决策见 [`docs/adr/`](docs/adr/)，新出现且尚未决定的事项记录在 [`docs/decisions-pending.md`](docs/decisions-pending.md)。
 
-已确认技术栈：React + TypeScript + Vite + Ant Design 前端，Java 21 + Spring Boot 3 + MySQL 8.4 后端，Apache POI 流式生成 Excel；RabbitMQ 承担导出任务队列，MyBatis 负责数据库访问，Flyway 管理迁移，Redis 缓存最新进度。本地启动、容器、CI、打包和发布方式尚未确定；其他运行参数、执行恢复和跨实例 SSE 通知也待决策，详见 [`docs/rules/backend.md`](docs/rules/backend.md) 与[待确认决策](docs/decisions-pending.md)。
+已确认技术栈：React + TypeScript + Vite + Ant Design 前端，Java 21 + Spring Boot 3 + MySQL 8.4 后端，Apache POI 流式生成 Excel；RabbitMQ 承担导出任务队列，MyBatis 负责数据库访问，Flyway 管理迁移，Redis 缓存最新进度。当前静态前端的本地启动见下方“项目启动”；后端启动、项目自身容器、CI、打包和发布方式尚未确定。其他运行参数、执行恢复和跨实例 SSE 通知也待决策，详见 [`docs/rules/backend.md`](docs/rules/backend.md) 与[待确认决策](docs/decisions-pending.md)。
 
 规格流程仅负责开发阶段的需求、计划和任务拆分；构建、测试执行、打包、容器和发布遵循 `docs/rules/` 中的项目规则。中高风险变更使用 `spec.md`、`plan.md`、`tasks.md` 及按需生成的附属产物。
 
-当前待评审的[项目初始化与基础骨架规格](specs/001-project-bootstrap/spec.md) 只计划静态前端、两个文字占位页和前后端职责文件；[计划](specs/001-project-bootstrap/plan.md) 提供完整目录及逐文件设计，[任务清单](specs/001-project-bootstrap/tasks.md) 记录审批和验证状态。该规格尚未实施；本轮不生成测试代码的用户明确指令仅适用于此静态骨架，不改变其他功能的测试先行要求。
+2026-10-07 已按[项目初始化与基础骨架规格](specs/001-project-bootstrap/spec.md) 创建可运行静态前端、两个文字占位页和前后端职责文件；[计划](specs/001-project-bootstrap/plan.md) 提供逐文件设计，[任务清单](specs/001-project-bootstrap/tasks.md) 记录授权及验证缺口。后端目前只是注释占位。本轮不生成测试代码的用户明确指令仅适用于此静态骨架，不改变其他功能的测试先行要求。
+
+## 项目启动
+
+以下命令均在项目根目录执行，适用于 Windows PowerShell。当前静态前端可独立运行，无需启动后端、MySQL、RabbitMQ 或 Redis。
+
+### 环境要求
+
+- Node.js 22 LTS，至少 22.12；本轮验证版本为 22.14.0。
+- pnpm 10，项目锁定版本为 10.34.6。
+
+检查本机版本：
+
+```powershell
+node --version
+pnpm --version
+```
+
+### 启动前端
+
+首次运行或依赖锁文件更新后，先安装依赖，再启动开发服务器：
+
+```powershell
+pnpm --dir frontend install --frozen-lockfile
+pnpm --dir frontend dev
+```
+
+打开 [http://127.0.0.1:5173](http://127.0.0.1:5173)。`/` 自动进入 `/orders`，侧栏可切换到 `/export-tasks`。终端保持运行，按 `Ctrl+C` 停止开发服务器。
+
+若本机 pnpm 不是 10，使用下面的固定版本命令，无需更改全局安装：
+
+```powershell
+npm exec --yes --package=pnpm@10.34.6 -- pnpm --dir frontend install --frozen-lockfile
+npm exec --yes --package=pnpm@10.34.6 -- pnpm --dir frontend dev
+```
+
+### 类型检查、构建与预览
+
+```powershell
+pnpm --dir frontend typecheck
+pnpm --dir frontend build
+pnpm --dir frontend preview
+```
+
+构建成功后，打开 [http://127.0.0.1:4173](http://127.0.0.1:4173) 查看生产构建预览；按 `Ctrl+C` 停止预览服务器。若本机 pnpm 版本不一致，同样在上述每条命令前加 `npm exec --yes --package=pnpm@10.34.6 -- `。
+
+开发和预览只监听 `127.0.0.1`；5173 或 4173 被占用时会报告错误，不会自动切换端口。
+
+### 后端启动状态
+
+当前后端仅包含目录与中文职责注释，尚无可运行的 Spring Boot 入口、有效 Maven 工程、Wrapper 或连接配置，因此本阶段没有后端启动命令。后续完成后端初始化时，在本节补充环境配置与实际启动步骤。
+
+模块职责详见[前端说明](frontend/README.md)与[后端说明](backend/README.md)；本轮实际命令和页面验证见[验证环境](docs/validation/001-project-bootstrap/environment.md)。
 
 ## 使用方式
 
 ### 只查看代码或运行已有产物
 
-直接阅读 [`AGENTS.md`](AGENTS.md) 和项目对应的运行说明即可。
+启动项目先查看本 README 的[项目启动](#项目启动)；模块细节见对应 README。查看代码或参与修改前，阅读 [`AGENTS.md`](AGENTS.md)。
 
 ### 参与开发
 
@@ -37,8 +89,8 @@
 │   ├── rules/                        # 前后端、测试、构建、容器等领域细则
 │   ├── adr/                          # 架构决策记录
 ├── scripts/                          # 项目级检查和自动化脚本
-├── src/                              # 生产代码（项目初始化后补充具体结构）
-└── tests/                            # 自动化测试和测试夹具
+├── frontend/                         # 可运行静态前端；模块职责见 frontend/README.md
+└── backend/                          # 注释占位的后端职责结构；目前无可运行服务
 ```
 
 ## 规则权级和文件权限

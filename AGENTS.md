@@ -55,7 +55,9 @@ AGENTS.md > .specify/memory/constitution.md > docs/rules/ > specs/<feature-dir>/
 | `specs/<feature-dir>/` | 标准规格产物：`spec.md`、`plan.md`、`tasks.md` 及其附属产物 | 中高风险变更开始前，实施中同步 |
 | `docs/adr/` | 不可逆或跨模块架构决策 | 决策落地前/后 |
 | `tests/` | 自动化测试和测试夹具 | 需求或行为变化时 |
-| `src/` | 生产代码（待项目初始化后按技术栈细化） | 实现阶段 |
+| `frontend/` | 可独立运行的静态前端；app、layouts、features、shared 分工见模块 README | 前端实现阶段 |
+| `backend/` | 后端职责结构；本期只有注释占位，尚非可运行服务 | 后端对应规格获批后实施 |
+| `docs/validation/` | 实际运行环境、命令、结构与页面验证证据 | 验证执行后据实维护 |
 
 ## 按任务查阅
 

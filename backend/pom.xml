@@ -1,0 +1,3 @@
+<!-- 职责：未来 Maven 工程的依赖与构建定义。
+本轮仅职责占位，无有效项目配置，不能执行 Maven 构建。
+设计依据：specs/001-project-bootstrap/plan.md。 -->

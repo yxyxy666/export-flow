@@ -110,7 +110,7 @@ flowchart TD
 
 2026-10-04 项目负责人明确要求先准备[项目初始化与基础骨架规格](../../specs/001-project-bootstrap/spec.md)。该阶段仅提供左侧菜单、两个中文名称占位页和明确职责的前后端结构；本节之后的筛选、表格、导出、任务状态等业务要求留待后续规格实施，不能将静态骨架视为完整产品已交付。
 
-阶段验收关联 [`AC-029`](acceptance-criteria.md#ac-029)、[`AC-041`](acceptance-criteria.md#ac-041)、[`AC-057`](acceptance-criteria.md#ac-057)、[`AC-058`](acceptance-criteria.md#ac-058)、[`AC-059`](acceptance-criteria.md#ac-059) 和 [`SC-014`](acceptance-criteria.md#sc-014)。新增条目与基础骨架规格仍待整体审批；用户明确指定本阶段不编写测试代码，采用结构、构建和静态页面验证，例外范围见[任务清单](../../specs/001-project-bootstrap/tasks.md)。
+阶段验收关联 [`AC-029`](acceptance-criteria.md#ac-029)、[`AC-041`](acceptance-criteria.md#ac-041)、[`AC-057`](acceptance-criteria.md#ac-057)、[`AC-058`](acceptance-criteria.md#ac-058)、[`AC-059`](acceptance-criteria.md#ac-059) 和 [`SC-014`](acceptance-criteria.md#sc-014)。2026-10-07 已授权执行既有基础骨架规格，实际验证与验收缺口见[任务清单](../../specs/001-project-bootstrap/tasks.md)。用户明确指定本阶段不编写测试代码，采用结构、构建和静态页面验证；例外不延伸到后续功能。
 
 ### 6.2 筛选区
 

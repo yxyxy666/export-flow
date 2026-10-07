@@ -1,0 +1,128 @@
+日期：2026-10-07；项目绝对路径已替换为 <repo>。
+首次命令：npm exec --yes --package=pnpm@10.34.6 -- pnpm --dir frontend install
+Progress: resolved 1, reused 0, downloaded 0, added 0
+
+   ╭─────────────────────────────────────────╮
+   │                                         │
+   │   Update available! 10.34.6 → 12.9.1.   │
+   │   Changelog: https://pnpm.io/v/12.9.1   │
+   │    To update, run: pnpm self-update     │
+   │                                         │
+   ╰─────────────────────────────────────────╯
+
+Progress: resolved 89, reused 10, downloaded 18, added 0
+Progress: resolved 137, reused 22, downloaded 64, added 0
+Packages: +95
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 139, reused 24, downloaded 66, added 39
+Progress: resolved 139, reused 24, downloaded 67, added 61
+Progress: resolved 139, reused 24, downloaded 69, added 92
+Progress: resolved 139, reused 24, downloaded 70, added 92
+Progress: resolved 139, reused 24, downloaded 71, added 92
+Progress: resolved 139, reused 24, downloaded 71, added 93
+Progress: resolved 139, reused 24, downloaded 71, added 94
+Progress: resolved 139, reused 24, downloaded 71, added 95, done
+
+dependencies:
++ antd 6.6.5
++ react 19.3.0
++ react-dom 19.3.0
++ react-router-dom 7.18.4
+
+devDependencies:
++ @types/node 22.20.5 (26.6.4 is available)
++ @types/react 19.3.0
++ @types/react-dom 19.3.0
++ @vitejs/plugin-react 6.1.2
++ typescript 7.0.2
++ vite 8.3.3
+
+Done in 12.3s using pnpm v10.34.6
+首次安装 exit=0
+命令：npm exec --yes --package=pnpm@10.34.6 -- pnpm --dir frontend install --frozen-lockfile
+Lockfile is up to date, resolution step is skipped
+Already up to date
+
+Done in 295ms using pnpm v10.34.6
+冻结安装 exit=0
+命令：npm exec --yes --package=pnpm@10.34.6 -- pnpm --dir frontend typecheck
+
+> export-flow-frontend@0.1.0 typecheck <repo>/frontend
+> tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit
+
+类型检查 exit=0
+命令：npm exec --yes --package=pnpm@10.34.6 -- pnpm --dir frontend build
+
+> export-flow-frontend@0.1.0 build <repo>/frontend
+> pnpm typecheck && vite build
+
+
+> export-flow-frontend@0.1.0 typecheck <repo>/frontend
+> tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit
+
+vite v8.3.3 building client environment for production...
+transforming...
+✓ 1505 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.39 kB │ gzip:   0.27 kB
+dist/assets/index-BI2_th3_.css    0.78 kB │ gzip:   0.44 kB
+dist/assets/index-CNE7oyCB.js   608.39 kB │ gzip: 198.99 kB
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 301ms
+生产构建 exit=0
+移除重复 main 标记后的最终构建：npm exec --yes --package=pnpm@10.34.6 -- pnpm --dir frontend build
+
+> export-flow-frontend@0.1.0 build <repo>/frontend
+> pnpm typecheck && vite build
+
+
+> export-flow-frontend@0.1.0 typecheck <repo>/frontend
+> tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit
+
+vite v8.3.3 building client environment for production...
+transforming...
+✓ 1505 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.39 kB │ gzip:   0.27 kB
+dist/assets/index-BI2_th3_.css    0.78 kB │ gzip:   0.44 kB
+dist/assets/index-DLi2rQDn.js   608.36 kB │ gzip: 198.98 kB
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 209ms
+最终生产构建 exit=0
+固定路径大小写匹配与源码引用整理后的构建：npm exec --yes --package=pnpm@10.34.6 -- pnpm --dir frontend build
+
+> export-flow-frontend@0.1.0 build <repo>/frontend
+> pnpm typecheck && vite build
+
+
+> export-flow-frontend@0.1.0 typecheck <repo>/frontend
+> tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit
+
+vite v8.3.3 building client environment for production...
+transforming...
+✓ 1505 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.39 kB │ gzip:   0.27 kB
+dist/assets/index-BI2_th3_.css    0.78 kB │ gzip:   0.44 kB
+dist/assets/index-DxjVUY8W.js   608.40 kB │ gzip: 198.99 kB
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 213ms
+最终构建 exit=0
