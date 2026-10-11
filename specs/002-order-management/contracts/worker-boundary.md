@@ -1,6 +1,6 @@
 # Worker 编排与真实 Excel 契约
 
-**版本／状态**：草稿0.3。生成、异常恢复及下载纳入本期；执行权/断点/就绪对账子集已在[ADR-0008](../../../docs/adr/0008-worker-execution-lease-and-recovery.md)接受，参数与异常消息见[决策记录](../decision-record.md)；规格整体仍待单独批准。关联[函数](../function-design.md)、[模型](../data-model.md)、[Excel方案](../excel-design.md)、[消息](export-command.md)、[tasks](../tasks.md)。
+**版本／状态**：草稿0.4。生成、异常恢复及下载纳入本期；执行权/断点/就绪对账子集已在[ADR-0008](../../../docs/adr/0008-worker-execution-lease-and-recovery.md)接受，参数与异常消息见[决策记录](../decision-record.md)；规格整体仍待单独批准。关联[函数](../function-design.md)、[模型](../data-model.md)、[Excel方案](../excel-design.md)、[消息](export-command.md)、[tasks](../tasks.md)。
 
 ## 实际执行链
 
@@ -10,9 +10,9 @@
 
 ## 生成端口
 
-`isAvailable(): boolean` 根据已验证依赖、持久目录和原子发布能力；`generate(context: GenerationContext, progressSink: ProgressSink, guard: ExecutionGuard): GenerationResult` 真实返回READY、KNOWN_FAILURE或UNKNOWN。
+`isAvailable(): boolean` 根据已验证依赖、持久目录和原子发布能力；`generate(context: GenerationContext, guard: ExecutionGuard): GenerationResult` 真实返回READY、KNOWN_FAILURE或UNKNOWN。
 
-READY必须包含真实校验后的ArtifactProof且就绪登记已确认；字段顺序、原值、中文展示、金额和香港时间见Excel方案。KNOWN_FAILURE只有明确不可恢复分类；依赖不可读、提交结果不明、失权均不能随意失败或ACK。不存在NOT_IMPLEMENTED分支。ProgressSink只核对已提交断点并通知本地观察器，不能报告尚未落盘的内存条数。
+READY必须包含真实校验后的ArtifactProof且就绪登记已确认；字段顺序、原值、中文展示、金额和香港时间见Excel方案。KNOWN_FAILURE只有明确不可恢复分类；依赖不可读、提交结果不明、失权均不能随意失败或ACK。新临时文件与复用READY统一经文件端口resolve安全定位，再由同一校验器以Path/StorageRef/TaskSnapshot/ExecutionGuard校验并返回ValidatedWorkbook；复用结果须与已有ArtifactProof相符。新文件发布前已校验，登记READY后不重复扫描。暂不可读/失权通过异常归UNKNOWN，不用boolean当作损坏。不存在NOT_IMPLEMENTED分支。进度只由断点登记事务持久化，不另设回调或重复report核对；尚未落盘的内存条数不算已完成进度。
 
 ## 执行权与异常恢复
 

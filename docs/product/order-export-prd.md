@@ -2,13 +2,13 @@
 
 **创建日期**：2026-09-13
 
-**版本**：1.0.15
+**版本**：1.0.16
 
 **定稿日期**：2026-09-13
 
-**修订日期**：2026-10-07
+**修订日期**：2026-10-11
 
-**修订说明**：新增订单管理分阶段规格入口：查询、受理、后台执行、真实Excel与下载纳入本期规格。产品/技术建议已于2026-10-07按负责人要求定稿，规格和测试阶段仍需独立审批。
+**修订说明**：本期前端仅查询订单和创建任务，成功后留在订单页；取消任务详情接口及详情页，任务列表与所有任务状态的SSE更新后续实施。后端继续完成受理、投递、执行、真实Excel、恢复及下载链路；规格和测试阶段仍需独立审批。
 
 **文档目的**：定义订单查询和 Excel 异步导出的产品需求，作为后续产品评审及前端、后端、测试方案编写的共同依据。
 
@@ -58,7 +58,8 @@ flowchart TD
     E --> F
     F --> G[选择导出字段]
     G --> H[创建异步导出任务]
-    H --> I[进入导出任务列表]
+    H --> N[创建成功 留在订单页面]
+    N -->|用户后续主动进入任务管理| I[查看导出任务列表]
     I --> J{查看任务状态}
     J -->|等待中或生成中| K[显示并持续更新进度]
     K --> J
@@ -80,7 +81,7 @@ flowchart TD
 
 作为订单运营人员，我希望导出已选订单或全部筛选结果，以便将所需订单用于对账、分析或离线处理。
 
-验收标准：[`AC-006`](acceptance-criteria.md#ac-006)、[`AC-007`](acceptance-criteria.md#ac-007)、[`AC-008`](acceptance-criteria.md#ac-008)、[`AC-009`](acceptance-criteria.md#ac-009)、[`AC-010`](acceptance-criteria.md#ac-010)、[`AC-011`](acceptance-criteria.md#ac-011)、[`AC-019`](acceptance-criteria.md#ac-019)、[`AC-025`](acceptance-criteria.md#ac-025)、[`AC-030`](acceptance-criteria.md#ac-030)、[`AC-050`](acceptance-criteria.md#ac-050)、[`AC-051`](acceptance-criteria.md#ac-051)。
+验收标准：[`AC-006`](acceptance-criteria.md#ac-006)、[`AC-007`](acceptance-criteria.md#ac-007)、[`AC-008`](acceptance-criteria.md#ac-008)、[`AC-009`](acceptance-criteria.md#ac-009)、[`AC-010`](acceptance-criteria.md#ac-010)、[`AC-011`](acceptance-criteria.md#ac-011)、[`AC-019`](acceptance-criteria.md#ac-019)、[`AC-072`](acceptance-criteria.md#ac-072)、[`AC-030`](acceptance-criteria.md#ac-030)、[`AC-050`](acceptance-criteria.md#ac-050)、[`AC-051`](acceptance-criteria.md#ac-051)。
 
 ### 5.3 用户故事三：跟踪并下载导出结果（P1）
 
@@ -116,7 +117,7 @@ flowchart TD
 
 2026-10-07 项目负责人要求准备[订单管理与后端异步流程规格](../../specs/002-order-management/spec.md)：覆盖订单查询、筛选、分页、选择、字段配置、导出受理与后台处理流程；负责人追加要求本次加入真实Excel生成、文件校验发布、异常断点恢复及下载。目录、逐文件变动、函数名、参数、返回值与调用关系见[计划](../../specs/002-order-management/plan.md)。
 
-本期需求范围已经明确包含真实Excel；恢复与存储方案已在[ADR-0008](../adr/0008-worker-execution-lease-and-recovery.md)接受子集。阶段已确认条目关联 [`AC-060`](acceptance-criteria.md#ac-060)、[`AC-061`](acceptance-criteria.md#ac-061)、[`AC-064`](acceptance-criteria.md#ac-064)、[`AC-065`](acceptance-criteria.md#ac-065)、[`AC-067`](acceptance-criteria.md#ac-067)、[`AC-068`](acceptance-criteria.md#ac-068)、[`AC-069`](acceptance-criteria.md#ac-069)、[`AC-070`](acceptance-criteria.md#ac-070)、[`AC-071`](acceptance-criteria.md#ac-071)。已完成Excel行逐批写磁盘临时文件，完整关闭校验后原子改名正式结果；具体临时阶段见[Excel设计](../../specs/002-order-management/excel-design.md#sxssf内容与资源)。原未实现阶段候选撤出且编号不复用，见[验收基线](acceptance-criteria.md#订单管理分阶段交付候选)。完整任务列表、失败重试页面、SSE/Redis通知及用户暂停恢复留后续；本期提供单任务结果回执与直接下载。技术/产品决策已确认，见[决策记录](../../specs/002-order-management/decision-record.md)；两次开发门禁仍待单独批准，见[任务记录](../../specs/002-order-management/tasks.md#审批记录)。
+本期需求范围已经明确包含真实Excel；恢复与存储方案已在[ADR-0008](../adr/0008-worker-execution-lease-and-recovery.md)接受子集。阶段已确认条目关联 [`AC-060`](acceptance-criteria.md#ac-060)、[`AC-061`](acceptance-criteria.md#ac-061)、[`AC-064`](acceptance-criteria.md#ac-064)、[`AC-065`](acceptance-criteria.md#ac-065)、[`AC-067`](acceptance-criteria.md#ac-067)、[`AC-068`](acceptance-criteria.md#ac-068)、[`AC-069`](acceptance-criteria.md#ac-069)、[`AC-071`](acceptance-criteria.md#ac-071)。已完成Excel行逐批写磁盘临时文件，完整关闭校验后原子改名正式结果；具体临时阶段见[Excel设计](../../specs/002-order-management/excel-design.md#sxssf内容与资源)。原未实现阶段候选撤出且编号不复用，见[验收基线](acceptance-criteria.md#订单管理分阶段交付候选)。完整任务列表、失败重试页面、SSE/Redis通知及用户暂停恢复留后续；本期前端仅处理任务创建响应，不展示进行中的任务或任务详情；后端保留真实生成、恢复及下载链路，以自动化和直接HTTP验证。创建成功留在订单页，见[`AC-072`](acceptance-criteria.md#ac-072)。技术/产品决策已确认，见[决策记录](../../specs/002-order-management/decision-record.md)；两次开发门禁仍待单独批准，见[任务记录](../../specs/002-order-management/tasks.md#审批记录)。
 
 ### 6.2 筛选区
 
@@ -178,7 +179,7 @@ flowchart TD
 
 ## 7. 导出任务需求
 
-导出任务页面提供关键字搜索、状态筛选、任务表格和分页。关键字匹配任务编号或文件名；状态筛选包含“全部”、等待中、生成中、已完成和失败。搜索或筛选后从第一页查询，“全部”不附加状态条件；关键字搜索口径已确认，任务页面后续规格获批后实施。
+后续任务页面统一展示等待中、生成中、已完成和失败的任务，初始列表快照与SSE状态变化配合更新；SSE包含成功和失败等终态变化，具体协议另行规格。导出任务页面提供关键字搜索、状态筛选、任务表格和分页。关键字匹配任务编号或文件名；状态筛选包含“全部”、等待中、生成中、已完成和失败。搜索或筛选后从第一页查询，“全部”不附加状态条件；关键字搜索口径已确认，任务页面后续规格获批后实施。
 
 ### 7.1 导出任务列表字段
 
@@ -214,7 +215,7 @@ flowchart TD
 等待中 -> 失败（投递窗口到期且尚未开工）
 ```
 
-创建成功意味着用户已经能通过任务编号查到任务，并不意味着文件已开始生成。创建结果不明时，页面保留用户的选择；对同一次提交重试后应找回原任务，而不是产生第二个任务。对应行为见 [`AC-050`](acceptance-criteria.md#ac-050) 和 [`AC-051`](acceptance-criteria.md#ac-051)。
+创建成功意味着任务及命令Outbox已经提交，并不意味着文件已开始生成。创建接口直接返回任务标识及创建结果，前端显示成功提示并留在订单页，无需再调用接口确认成功；创建结果不明时，页面保留用户的选择，通过原创建接口和原幂等键重试找回原任务。对应行为见 [`AC-050`](acceptance-criteria.md#ac-050)、[`AC-051`](acceptance-criteria.md#ac-051) 和 [`AC-072`](acceptance-criteria.md#ac-072)。
 
 任务尚未完成可确认投递且未开工时，按 [`AC-052`](acceptance-criteria.md#ac-052) 自动结束等待并给出投递超时原因，用户可重试或重新创建；已确认发送的正常排队任务不因等待较久失败，见 [`AC-049`](acceptance-criteria.md#ac-049)。并发判定与迟到消息保护见 [`AC-053`](acceptance-criteria.md#ac-053)。队列交付和认领机制由 [`ADR-0004`](../adr/0004-rabbitmq-task-queue.md)、[`ADR-0006`](../adr/0006-broker-owned-pending-delivery.md) 与 [`ADR-0007`](../adr/0007-outbox-dispatch-retry.md) 负责说明，不属于本产品状态表。
 

@@ -1,17 +1,19 @@
 # 功能规格：订单管理与后端异步导出流程
 
 **功能标识**：`002-order-management`（文档目录标识，未创建 Git 分支）  
-**日期／版本**：2026-10-07／草稿 0.3  
+**日期／版本**：2026-10-11／草稿 0.4
 **状态**：规格待评审；两次实施门禁均未批准。  
 **输入**：准备订单界面前后端规格，完成查询筛选等能力与后端架构流程；负责人追加要求本次加入真实 Excel 实现。列明文件、新增／修改函数、参数、返回值和调用关系。
 
 ## 规格交付与阶段边界
 
-本期规划交付真实订单查询、筛选、分页、选择、导出配置、任务创建及幂等找回；后端从可运行工程、MySQL 迁移到事务 Outbox、RabbitMQ 发布、自动超时关闭、任务快照查询均需真实实现。Worker 实际消费并认领任务，稳定分批读取订单，持久化可复用数据块与断点，使用 Apache POI SXSSF 生成真正的 Excel，关闭校验并安全发布产物，再提交成功与元数据。明确失败保留实际进度及安全错误；消费者只在已提交终态或权威证明无需处理后确认消费。
+本期规划交付真实订单查询、筛选、分页、选择、导出配置、任务创建及幂等找回；后端从可运行工程、MySQL 迁移到事务 Outbox、RabbitMQ 发布、自动超时关闭均需真实实现。Worker 实际消费并认领任务，稳定分批读取订单，持久化可复用数据块与断点，使用 Apache POI SXSSF 生成真正的 Excel，关闭校验并安全发布产物，再提交成功与元数据。明确失败保留实际进度及安全错误；消费者只在已提交终态或权威证明无需处理后确认消费。
 
-本次交付演示环境启用真实消费者，生成能力必须通过启动检查，不保留未实现返回值。任务回执提供单次手动刷新、成功文件信息及同源下载入口，形成“查询→创建→消费→生成→下载”的可演示链路。完整任务列表、按需 SSE 和失败任务重试页面仍留后续；不以当前回执取代产品完整任务管理页。新增范围设计见 [Excel 与恢复方案](excel-design.md)，执行权、异常接管及文件对账子集已按本次明确决策在[ADR-0008](../../docs/adr/0008-worker-execution-lease-and-recovery.md)接受；暂停与显式恢复不纳入当前MVP。
+本次交付演示环境启用真实消费者，生成能力必须通过启动检查，不保留未实现返回值。前端仅提供订单查询与任务创建，创建成功留在订单页，直接使用创建接口的已提交结果显示成功提示；不查询任务详情、进度或生成结果。后端完成“创建→投递→消费→生成→下载”链路，执行进度、结果元数据与下载通过后端自动化和直接HTTP验证。任务页面保留静态占位，所有任务状态展示、按需SSE及下载操作界面留后续任务管理规格。新增范围设计见 [Excel 与恢复方案](excel-design.md)，执行权、异常接管及文件对账子集已按本次明确决策在[ADR-0008](../../docs/adr/0008-worker-execution-lease-and-recovery.md)接受；暂停与显式恢复不纳入当前MVP。
 
-完整结构、逐文件职责和函数设计由 [plan.md](plan.md) 及其直接链接的 [function-design.md](function-design.md) 承载。数据见 [data-model.md](data-model.md)，边界见 [contracts/README.md](contracts/README.md)，测试、审批与追踪见 [tasks.md](tasks.md)。所有附属产物随三份核心文档共同评审。
+函数设计评审直接从[创建任务流程](function-design.md#一创建任务)开始，依次核对投递、执行中的函数签名、内部步骤和完成条件；查询与下载按需阅读。完整签名及逐文件职责见[实现对照附录](function-design-reference.md)，目录见[计划文末](plan.md#项目结构)。数据见[data-model.md](data-model.md)，边界见[contracts/README.md](contracts/README.md)，测试、审批与追踪见[tasks.md](tasks.md)。所有附属产物随三份核心文档共同评审。
+
+2026-10-11 负责人明确要求全部前端业务 API 使用一个专门文件，统一设计为 `frontend/src/shared/api/api.ts`；订单和任务功能只调用统一入口。该结构要求已同步计划、函数设计及任务，本次只修订规格文档，实际文件迁移留待实施阶段。负责人同时确认取消任务详情接口及详情页，前端只关注创建任务，后端仍完成全部链路；产品变更见[`AC-072`](../../docs/product/acceptance-criteria.md#ac-072)。
 
 风险为**高风险**：首次真实持久化、幂等唯一约束、Outbox 多实例领取、超时与认领并发一致性。既有基础骨架审批不覆盖本期。规格批准只允许测试先行；测试阶段门禁通过且负责人再次明确批准后，才实施生产代码，依据 [AGENTS.md](../../AGENTS.md) 与[测试规则](../../docs/rules/testing.md#测试先行阶段与审批)。本次仅生成文档。
 
@@ -25,15 +27,15 @@
 
 ### 用户故事二：提交可找回的导出申请（P1）
 
-用户选择已勾选订单或已提交筛选范围，配置字段并确认；明确成功后清空选择并进入任务管理。明确失败保留输入；网络超时或提交不明时保留同次提交和原幂等键，用原载荷找回结果。可独立使用前端 MSW 与真实数据库创建接口测试验证，不等待消息或文件。
+用户选择已勾选订单或已提交筛选范围，配置字段并确认；创建接口确认成功后清空选择、关闭配置并在当前订单页面提示任务已创建及任务编号，保留筛选、内存关键字、分页与排序，不追加查询或自动导航。明确失败保留输入；网络超时或提交不明时保留同次提交和原幂等键，用原载荷找回结果。可独立使用前端 MSW 与真实数据库创建接口测试验证，不等待消息或文件。
 
-验收关联：[`AC-006`](../../docs/product/acceptance-criteria.md#ac-006)、[`AC-007`](../../docs/product/acceptance-criteria.md#ac-007)、[`AC-008`](../../docs/product/acceptance-criteria.md#ac-008)、[`AC-009`](../../docs/product/acceptance-criteria.md#ac-009)、[`AC-010`](../../docs/product/acceptance-criteria.md#ac-010)、[`AC-011`](../../docs/product/acceptance-criteria.md#ac-011)、[`AC-019`](../../docs/product/acceptance-criteria.md#ac-019)、[`AC-025`](../../docs/product/acceptance-criteria.md#ac-025)、[`AC-030`](../../docs/product/acceptance-criteria.md#ac-030)、[`AC-050`](../../docs/product/acceptance-criteria.md#ac-050)、[`AC-051`](../../docs/product/acceptance-criteria.md#ac-051)。已确认字段配置和幂等冲突 [`AC-060`](../../docs/product/acceptance-criteria.md#ac-060)、[`AC-064`](../../docs/product/acceptance-criteria.md#ac-064) 纳入本规格，完整定义仅在[验收基线](../../docs/product/acceptance-criteria.md#订单管理分阶段交付候选)维护；原未实现阶段候选撤出本次映射，编号不复用。
+验收关联：[`AC-006`](../../docs/product/acceptance-criteria.md#ac-006)、[`AC-007`](../../docs/product/acceptance-criteria.md#ac-007)、[`AC-008`](../../docs/product/acceptance-criteria.md#ac-008)、[`AC-009`](../../docs/product/acceptance-criteria.md#ac-009)、[`AC-010`](../../docs/product/acceptance-criteria.md#ac-010)、[`AC-011`](../../docs/product/acceptance-criteria.md#ac-011)、[`AC-019`](../../docs/product/acceptance-criteria.md#ac-019)、[`AC-072`](../../docs/product/acceptance-criteria.md#ac-072)、[`AC-030`](../../docs/product/acceptance-criteria.md#ac-030)、[`AC-050`](../../docs/product/acceptance-criteria.md#ac-050)、[`AC-051`](../../docs/product/acceptance-criteria.md#ac-051)。已确认字段配置和幂等冲突 [`AC-060`](../../docs/product/acceptance-criteria.md#ac-060)、[`AC-064`](../../docs/product/acceptance-criteria.md#ac-064) 纳入本规格，完整定义仅在[验收基线](../../docs/product/acceptance-criteria.md#订单管理分阶段交付候选)维护；原未实现阶段候选撤出本次映射，编号不复用。
 
-### 用户故事三：后台可靠交接并观察受理结果（P1）
+### 用户故事三：后台可靠执行与真实文件交付（P1）
 
-即使 RabbitMQ 暂不可用，已提交任务仍可查；后台在窗口内补投，到期按权威状态关闭。Worker 生成真实文件，前端回执可刷新权威状态并下载成功产物。通过真实 MySQL、RabbitMQ 和文件系统验证命令重复、执行中断、断点恢复、文件发布与终态提交等窗口；测试替身只作补充。完整任务管理页仍另行规格。
+即使RabbitMQ暂不可用，创建接口仍可返回已提交任务，后台在窗口内补投，到期按权威状态关闭。Worker生成真实文件，持久化真实进度、结果元数据与安全失败；后端下载接口独立核对已提交成功引用。本期前端不读取或展示这些执行结果。通过真实 MySQL、RabbitMQ 和文件系统验证命令重复、执行中断、断点恢复、文件发布与终态提交等窗口；测试替身只作补充。完整任务管理页仍另行规格。
 
-验收关联：[`AC-052`](../../docs/product/acceptance-criteria.md#ac-052)、[`AC-053`](../../docs/product/acceptance-criteria.md#ac-053)、[`AC-054`](../../docs/product/acceptance-criteria.md#ac-054)、[`AC-055`](../../docs/product/acceptance-criteria.md#ac-055)、[`AC-056`](../../docs/product/acceptance-criteria.md#ac-056)、[`AC-049`](../../docs/product/acceptance-criteria.md#ac-049)。真实文件、下载、元数据与永久保留关联 [`AC-013`](../../docs/product/acceptance-criteria.md#ac-013)、[`AC-014`](../../docs/product/acceptance-criteria.md#ac-014)、[`AC-015`](../../docs/product/acceptance-criteria.md#ac-015)、[`AC-018`](../../docs/product/acceptance-criteria.md#ac-018)。已确认新增条目 [`AC-067`](../../docs/product/acceptance-criteria.md#ac-067)、[`AC-068`](../../docs/product/acceptance-criteria.md#ac-068)、[`AC-069`](../../docs/product/acceptance-criteria.md#ac-069)、[`AC-070`](../../docs/product/acceptance-criteria.md#ac-070)、[`AC-071`](../../docs/product/acceptance-criteria.md#ac-071) 纳入当前规格，产品口径与架构决策已确认。
+验收关联：[`AC-052`](../../docs/product/acceptance-criteria.md#ac-052)、[`AC-053`](../../docs/product/acceptance-criteria.md#ac-053)、[`AC-054`](../../docs/product/acceptance-criteria.md#ac-054)、[`AC-055`](../../docs/product/acceptance-criteria.md#ac-055)、[`AC-056`](../../docs/product/acceptance-criteria.md#ac-056)、[`AC-049`](../../docs/product/acceptance-criteria.md#ac-049)。真实文件、下载、元数据与永久保留关联 [`AC-013`](../../docs/product/acceptance-criteria.md#ac-013)、[`AC-014`](../../docs/product/acceptance-criteria.md#ac-014)、[`AC-015`](../../docs/product/acceptance-criteria.md#ac-015)、[`AC-018`](../../docs/product/acceptance-criteria.md#ac-018)。已确认新增条目 [`AC-067`](../../docs/product/acceptance-criteria.md#ac-067)、[`AC-068`](../../docs/product/acceptance-criteria.md#ac-068)、[`AC-069`](../../docs/product/acceptance-criteria.md#ac-069)、[`AC-071`](../../docs/product/acceptance-criteria.md#ac-071) 纳入当前规格，产品口径与架构决策已确认。上述文件与元数据标准本期只验证后端能力，任务列表中的展示、下载按钮与禁用原因留后续规格，覆盖边界见任务清单。
 
 ### 用户故事四：导航与错误可恢复（P2）
 
@@ -61,21 +63,21 @@
 - **FR-004**：任务、范围快照、有序字段、幂等结果与创建命令同事务提交；只在提交确认后响应；重放读取当前摘要。
 - **FR-005**：dispatcher 真实发布、确认与正确路由核对、领取租约、持久退避、坏记录隔离及独立到期扫描均实现；时间与并发裁决由 MySQL 决定。
 - **FR-006**：Worker 与 SXSSF 实现通过端口隔离；本期真实生成文件，采用有界源数据批次与工作簿窗口，不加载完整订单或工作簿到内存。执行权、断点、发布和异常恢复遵循 [Excel方案](excel-design.md)，消费者在能力和架构门禁满足后启用。
-- **FR-007**：任务只读回执从 MySQL 读取任务 ID、范围数量、所选字段、状态、实际进度和安全错误，不使用轮询、SSE 或 Redis 推测业务状态。
+- **FR-007**：创建接口只在确认任务及Outbox事务提交后返回201，幂等找回已提交任务返回200；响应仅含创建标识和配置，前端显示成功提示并留在订单页。本期不提供任务详情/状态查询接口，也不实现前端SSE或轮询。
 - **FR-008**：所有协议、数据模型、状态、函数及失败出口在附属产物中定义；技术与参数逐项在[决策记录](decision-record.md)定稿；未执行能力验证据实登记。
 - **FR-009**：生成按固定范围及字段顺序，状态／渠道中文与未知回退、金额精度、客户原值、香港时间及文件名遵循产品基线；下载只解析 MySQL 成功产物引用，禁止前端 Blob 缓冲。
 - **FR-010**：不可变数据块断点可跨进程重启恢复；旧执行身份不能登记断点、进度或结果；就绪产物对账优先于重建。异常接管只使用原未确认命令，禁止扫描 RUNNING 新建恢复 Outbox；没有可信断点时，只有证明重复安全才建立新数据代次。
-- **FR-011**：Excel写入期间逐批把已完成行及缓冲刷入磁盘临时文件；全部完成后将关闭、校验通过的.xlsx.part原子改名为正式.xlsx，再登记权威结果。临时与正式文件身份、刷盘函数及失败处理见[Excel方案](excel-design.md#sxssf内容与资源)和[函数清单](function-design.md)。
+- **FR-011**：Excel写入期间逐批把已完成行及缓冲刷入磁盘临时文件；全部完成后将关闭、校验通过的.xlsx.part原子改名为正式.xlsx，再登记权威结果。临时与正式文件身份、刷盘函数及失败处理见[Excel方案](excel-design.md#sxssf内容与资源)和[装配器辅助函数](function-design-reference.md#backendsrcmainjavacomexportflowworkerinfrastructureexcelexcelworkbookassemblerjava)。
 
 关键实体：订单、查询条件、分页、导出范围、字段列表、冻结提交、任务、幂等登记、命令 Outbox、投递尝试、执行权、生成结果。字段与生命周期见 [data-model.md](data-model.md)。
 
 ## 非目标
 
-本期不实现用户暂停恢复、失败任务重试页面、完整任务列表、SSE、跨实例通知、Redis 实际缓存适配、生产部署或新增 Compose。不引入暂停状态或恢复命令，不将半成品 XLSX 当断点。异常断点恢复属于本次方案；Redis 缓存和连续前端进度通知另行规格，本期回执采用显式单次刷新。
+本期不实现用户暂停恢复、失败任务重试页面、完整任务列表、SSE、跨实例通知、Redis 实际缓存适配、生产部署或新增 Compose。不引入暂停状态或恢复命令，不将半成品 XLSX 当断点。异常断点恢复属于本次方案；Redis 缓存和连续前端进度通知另行规格，本期任务页仅保留静态占位，创建后的状态展示与下载交互不纳入本期前端。
 
 ## 成功标准
 
-本期验证 [`SC-001`](../../docs/product/acceptance-criteria.md#sc-001)、[`SC-002`](../../docs/product/acceptance-criteria.md#sc-002)、[`SC-003`](../../docs/product/acceptance-criteria.md#sc-003)、[`SC-004`](../../docs/product/acceptance-criteria.md#sc-004)、[`SC-005`](../../docs/product/acceptance-criteria.md#sc-005)、[`SC-006`](../../docs/product/acceptance-criteria.md#sc-006)、[`SC-007`](../../docs/product/acceptance-criteria.md#sc-007)。文件指标必须使用真实产物和获批参考环境测量；已确认交付指标 [`SC-008`](../../docs/product/acceptance-criteria.md#sc-008)、[`SC-009`](../../docs/product/acceptance-criteria.md#sc-009)、[`SC-010`](../../docs/product/acceptance-criteria.md#sc-010) 纳入本次验证映射。持续通知与完整任务列表另行验收，不能把手动回执视为连续更新已完成。
+本期验证 [`SC-001`](../../docs/product/acceptance-criteria.md#sc-001)、[`SC-002`](../../docs/product/acceptance-criteria.md#sc-002)、[`SC-003`](../../docs/product/acceptance-criteria.md#sc-003)、[`SC-004`](../../docs/product/acceptance-criteria.md#sc-004)、[`SC-005`](../../docs/product/acceptance-criteria.md#sc-005)、[`SC-006`](../../docs/product/acceptance-criteria.md#sc-006)、[`SC-007`](../../docs/product/acceptance-criteria.md#sc-007)。文件指标必须使用真实产物和获批参考环境测量；已确认交付指标 [`SC-008`](../../docs/product/acceptance-criteria.md#sc-008)、[`SC-009`](../../docs/product/acceptance-criteria.md#sc-009)、[`SC-010`](../../docs/product/acceptance-criteria.md#sc-010) 纳入本次验证映射。持续通知与完整任务列表另行验收，本期后端进度与终态验证不能替代后续任务界面的连续更新、元数据显示或下载操作验收。
 
 ## 已确认前提与待确认事项
 

@@ -20,8 +20,9 @@ ID 在 JSON 中为字符串，Java 内部订单 ID 为正 Long（协议十进制
 | ExportField | 有序允许值 orderNo、customerName、customerPhone、status、channel、amount、currency、region、createdAt；1–9 项且不重复；默认列表按页面业务列顺序 |
 | ExportScope | SELECTED: orderIds: OrderId[1..200000]，忽略排序去重后校验每个 ID 存在；FILTERED: filter: OrderFilter，不含分页／排序／前端计数；两种范围互斥 |
 | CreateExportRequest | scope: ExportScope；fields: ExportField[]；额外字段拒绝；服务端不能接受 total/status/taskId |
-| FrozenExportSubmission | request: 深度不可变 CreateExportRequest；idempotencyKey；localState=`SUBMITTING`/`UNKNOWN`/`CONFIRMED`/`REJECTED`；仅页面内存；结果不明不能换键 |
-| ExportTask / TaskSummary | taskId、taskNo、scopeType、totalCount、fields、status、processedCount、progressPercent、createdAt、finishedAt?、errorCode?、errorSummary?、fileName?、fileSize?；PENDING 为 0，FAILED 保留实际进度；回执不展示内部路径／键／lease |
+| FrozenExportSubmission | request: 深度不可变 CreateExportRequest；idempotencyKey；localState=`SUBMITTING`/`UNKNOWN`/`CONFIRMED`/`REJECTED`；result?: CreateExportResponse；仅页面内存；结果不明不能换键 |
+| CreateExportResponse | taskId: UUID字符串、taskNo: string、scopeType: SELECTED/FILTERED、totalCount: 1至200000的安全整数、fields: 有序ExportField[]、createdAt: UtcInstant；仅已确认提交的创建结果，201/200均返回此结构，不含执行进度、状态或文件元数据 |
+| ExportTask / TaskSummary（仅后端内部） | taskId、taskNo、scopeType、totalCount、fields、status、processedCount、progressPercent、createdAt、finishedAt?、errorCode?、errorSummary?、fileName?、fileSize?；PENDING 为 0，FAILED 保留实际进度；仅后端幂等核对及执行链路使用，不作为前端创建响应；内部路径／键／lease不得外泄 |
 | ApiError | code、message、traceId、fieldErrors?: {field,message}[]、details?: {currentCount,limit}、outcome?: `REJECTED`/`UNKNOWN`；前端创建失败只依据可信 outcome 分类 |
 
 ## 前端自有状态与参数类型
@@ -32,7 +33,8 @@ ID 在 JSON 中为字符串，Java 内部订单 ID 为正 Long（协议十进制
 - ExportDialogState：isOpen、scope?: ExportScope、fields: ExportField[]；ExportConfigDialogProps：state、isSubmitting、isUnknown、onFieldsChange(fields):void、onConfirm():void、onClose():void、onRetry():void。
 - OrdersState：query: OrderQuery、pageResult?: PageResult<OrderDto>、loadState=`loading`/`success`/`empty`/`error`、error?: ApiError；UseOrdersResult 增加 submitFilter(values)、reset()、changePage(page,pageSize)、changeSort(direction)、refresh()，返回 Promise<void> 或 void 依函数设计；不复制 TanStack Query 的服务端缓存。
 - UseOrderSelectionResult：ids、count、dispatch(action):void；UseOrderExportResult：dialog、submission?、open(scope):void、setFields(fields):void、close():void、confirm():Promise<void>、retryUnknown():Promise<void>。
-- OrderExportDependencies：createTask(request,key,signal?):Promise<TaskSummary>、navigate(path):void、clearSelection():void、newKey():string；用于可控测试，不访问缓存或存储。
+- CreateExportTaskApi：函数类型 `(request:CreateExportRequest,key:string,signal?:AbortSignal)=>Promise<CreateExportResponse>`；提交用例只接收此API函数，不接收页面回调。OrderExportDependencies：createTask:CreateExportTaskApi、notifyCreated(result:CreateExportResponse):void、clearSelection():void、newKey():string；只供Hook协调提交和页面反馈，不访问缓存或存储。
+- applySubmissionResult是Hook内部方法：先保存提交快照，再处理首次成功的页面操作；失败操作不改写CONFIRMED、不换键重发；确认与同键重试共用此方法。
 - UseOrderExportResult 还提供 resetDraft():void，只有可编辑态允许显式重置；OrderManagementPage.handleReset 协调 query、selection、dialog 的重置，不让 useOrders 暗中操作其他Hook状态。SUBMITTING/UNKNOWN时冻结筛选、选择、排序、分页与导出字段的交互，先确认当前意图结果；刷新／离开不冒充取消后台任务。
 - RequestOptions：method=`GET`/`POST`、body?:unknown、headers?:Record<string,string>、signal?:AbortSignal、timeoutMs?:number（默认10000）。UseOrderQueryStateResult：query、setQuery(query,mode=`push`):void；keyword 独立内存。ApiRequestError：error:ApiError、status?:number、kind=`http`/`network`/`timeout`/`aborted`/`protocol`。
 - 组件 props 仅声明所需回调；回调命名统一由函数清单列出，简单渲染匿名回调不新增隐蔽业务逻辑。
@@ -78,19 +80,19 @@ SENT仍PENDING不自动失败、不补投；任务终态不可回退，数据库
 - PageRequest(page:int,pageSize:int)、PageSlice<T>(items:List<T>,page:int,pageSize:int,total:long)、TaskId(UUID)、EventId(UUID)、OwnerId(String)、LeaseToken(UUID) 为值类型；机械构造／访问器不展开。
 - TaskIdentity(taskId:UUID,eventId:UUID,taskNo:String) 为本次创建的稳定身份；DispatchAttemptRecord、ExecutionLeaseRecord 分别独立映射相应表，不与领域类型共用。PageResult/OrderResponse 等传输类型在前后端各自定义，record 构造／访问器可机械生成。
 - IdempotencyDbRecord 是 ExportTaskRecord 文件内的独立持久记录，字段与 export_idempotency 对应；基础设施显式转为 IdempotencyRecord，不把数据库记录直接返回领域端口。SQL mapper 输出为数据库记录或标量，端口输出为领域值。
-- OrderQueryDto、OrderResponse、CreateTaskRequestDto、TaskSummaryResponse 为传输模型；OrderRecord、ExportTaskRecord、CommandOutboxRecord、DispatchAttemptRecord、ExecutionLeaseRecord 为基础设施记录；映射函数单列，禁止共用。
+- OrderQueryDto、OrderResponse、CreateTaskRequestDto、CreateTaskResponse 为传输模型；OrderRecord、ExportTaskRecord、CommandOutboxRecord、DispatchAttemptRecord、ExecutionLeaseRecord 为基础设施记录；映射函数单列，禁止共用。
 - CreateExportCommand(scope:ExportScope,fields:List<ExportField>,key:String)、CanonicalSubmission(version:int,requestHash:byte[],keyHash:byte[],scope:ExportScope,fields:List<ExportField>)、CreateTaskResult(task:TaskSummary,isReplay:boolean)；返回前必须确认已提交。
 - ExportRangeCheck(total:long,scope:ExportScope)、TaskSnapshot(task:ExportTask,scope:ExportScope,fields:List<ExportField>)、IdempotencyMatch=`ABSENT`/`SAME`/`CONFLICT`。
 - DispatchPolicy(scanInterval:Duration,batchSize:int,maxConcurrency:int,publishBudget:Duration,leaseDuration:Duration,backoffBase:Duration,backoffCap:Duration)、DispatchLease(eventId,taskId,owner,token,attemptNo,leaseUntil,deadline)、PublishEvidence(confirmAck:boolean,correctRoute:boolean,policyVerified:boolean)、PublishResult(kind=`CONFIRMED`/`FAILED`/`UNKNOWN`,evidence?,safeCode?)。
 - DispatchOutcome=`SENT`/`RETRY_SCHEDULED`/`STALE`/`CLOSED`/`UNKNOWN`；ClaimBatch(leases:List<DispatchLease>)；DispatchScanResult(claimed,sent,retried,closed)；DeadlineScanResult(scanned,failed,closed)。
 - ExportCommandEnvelope(eventId,taskId,type,schemaVersion,traceId)；DeliveryContext(channelId:String,deliveryTag:long,receivedAt:Instant) 仅本地进程上下文，不持久伪造 broker 状态；DeliveryDecision=`ACK`/`HOLD`/`CLOSE_CHANNEL`，由基础设施监听器执行。
 - ExecutionPolicy(leaseDuration:Duration,heartbeatInterval:Duration,claimTimeout:Duration,maxAttemptDuration:Duration,maxRecoveryTakeovers:int,recoveryBackoffBase:Duration,recoveryBackoffCap:Duration,shutdownGrace:Duration) 为已定参数，具体值见[Excel方案](excel-design.md#本期具体建议参数)；ExecutionLease(taskId,owner,fence,leaseUntil,progressVersion)、ClaimResult(kind=`ACQUIRED`/`TERMINAL`/`BUSY`/`UNKNOWN`,lease?,snapshot?)、LeaseWriteResult=`APPLIED`/`STALE`/`UNKNOWN`。
-- GenerationContext(snapshot:TaskSnapshot,lease:ExecutionLease)、GenerationResult(kind=`READY`/`KNOWN_FAILURE`/`UNKNOWN`,artifact?:ArtifactProof,error?:SafeFailure)、ArtifactProof(artifactId:UUID,taskId:UUID,dataGeneration:long,configurationHash:String,artifactRef:StorageRef,fileName:String,size:long,rowCount:long,checksum:String)、SafeFailure(code,message)、ProgressUpdate(processed:long,expectedVersion:long)。本期真实产物校验后才有证明，无未实现分支。
-- ProgressSink.report(update:ProgressUpdate):LeaseWriteResult、ExecutionGuard.check():boolean为生成回调。块登记同事务推进真实进度，ProgressSink只核对已提交事实并本地通知；Redis/SSE不在本期，不能把回调等同前端连续更新。
+- GenerationContext(snapshot:TaskSnapshot,lease:ExecutionLease)、GenerationResult(kind=`READY`/`KNOWN_FAILURE`/`UNKNOWN`,artifact?:ArtifactProof,error?:SafeFailure)、ArtifactProof(artifactId:UUID,taskId:UUID,dataGeneration:long,configurationHash:String,artifactRef:StorageRef,fileName:String,size:long,rowCount:long,checksum:String)、SafeFailure(code,message)。本期真实产物校验后才有证明，无未实现分支。
+- ExecutionGuard.check():boolean为生成期间的执行权检查。块登记事务唯一推进真实进度，不设置独立进度回调或另一次report核对；Redis/SSE不在本期。
 
 ## 调度时间与适配调用补充
 
-退避纯函数返回Duration，Outbox重试与Worker恢复退避都由DB当前时间计算持久期限。mapper每方法对应明确statement；CheckpointRepository.commitBlock同事务调用insertBlock/updateCheckpoint/advanceProgressVersion/updateProgress，不能在尚未保存数据时独立report推进进度。终态同事务completeTask/adopt/releaseLease，find只读不隐式申请执行锁。
+退避纯函数返回Duration，Outbox重试与Worker恢复退避都由DB当前时间计算持久期限。mapper每方法对应明确statement；CheckpointRepository.commitBlock同事务调用insertBlock/updateCheckpoint/advanceProgressVersion/updateProgress，不提供独立report进度入口。终态同事务completeTask/adopt/releaseLease，find只读不隐式申请执行锁。
 
 ## 本期新增断点、产物及清理模型
 
@@ -112,9 +114,11 @@ SENT仍PENDING不自动失败、不补投；任务终态不可回退，数据库
 | TrustedPrefix / CompletedDataset | prefix(generation,version,blocks,cursor?,verifiedCount,isSafeToRedo:boolean)；dataset(taskId,generation,configHash,blocks,totalRows)，只完整可信数据可装配 |
 | CheckpointWriteResult | kind=APPLIED/STALE/UNKNOWN，snapshot?；未知提交按blockId核对 |
 | StorageRef / AttemptWorkspace | ref(kind,taskId,identity:UUID,generation?,attemptFence?,owner?)全部由服务端生成；workspace(taskId,owner,fence,namespace:String)为逻辑命名空间，不输出物理Path |
-| StagingWorkbook / ValidatedWorkbook | staging(ref,artifactId,rows,fileName)；validated(ref,size,checksum,rowCount,configHash)，证明来自流式校验 |
+| StagingWorkbook / ValidatedWorkbook | staging(ref,artifactId,rows,fileName)；validated(ref,size,checksum,rowCount,configHash)，证明来自统一流式校验；新临时文件和已有READY均以安全Path、StorageRef、TaskSnapshot及ExecutionGuard作为校验输入 |
 | DownloadMetadata / DownloadHandle | metadata(fileName,mimeType,length)；handle(metadata,input:InputStream)负责有界writeTo与close；禁止控制器持有DB事务直到下载完 |
 | StorageCandidate / CleanupPermit | candidate(id,ref,taskId,owner?,fence?,observedAt)；permit(candidateId,token,ref)为DB核对后授予身份，不包含用户请求路径 |
+
+Path是JDK类型，只由文件端口resolve在受控根内安全定位后交给校验器，不来自HTTP输入、不放入响应或SQL记录。校验成功返回ValidatedWorkbook；明确损坏/配置不符与依赖暂不可读/失权以可分类异常交生成器，分别形成KNOWN_FAILURE与UNKNOWN，不能用boolean混淆。
 
 文件物理目录和POI资源策略见[Excel方案](excel-design.md#文件身份就绪登记及下载)。数据库持久记录与领域值单独定义，机械字段转换在适配器内；BlockRef和ArtifactProof不直接充当SQL返回类型。新增schema为设计，不在本次生成迁移。
 

@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "订单管理分阶段接口设计",
-    "version": "0.3.0-draft",
-    "description": "技术/产品决策已确认，规格整体未获审批，不代表已实现。包含订单、创建、单任务摘要与成功Excel直接下载；逐批临时文件写入、关闭校验及原子改名见Excel设计。"
+    "version": "0.4.0-draft",
+    "description": "规格待审批，不代表已实现。本期前端仅订单查询与任务创建，成功留在订单页。后端完成投递、消费、Excel、恢复与下载，不提供任务详情查询；任务状态界面和SSE另规格。"
   },
   "servers": [
     {
@@ -168,7 +168,7 @@
     "/api/v1/export-tasks": {
       "post": {
         "operationId": "createExportTask",
-        "summary": "事务提交后确认受理",
+        "summary": "创建任务并直接返回已提交结果",
         "parameters": [
           {
             "name": "Idempotency-Key",
@@ -194,30 +194,22 @@
         },
         "responses": {
           "200": {
-            "description": "同键同请求重放，当前摘要",
+            "description": "同键同请求返回原任务的创建标识及配置，不重建或重置执行状态",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskSummary"
+                  "$ref": "#/components/schemas/CreateExportResponse"
                 }
               }
             }
           },
           "201": {
-            "description": "首次创建，已确认提交",
+            "description": "首次创建，任务及Outbox已确认提交；响应直接确认创建成功",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskSummary"
+                  "$ref": "#/components/schemas/CreateExportResponse"
                 }
-              }
-            },
-            "headers": {
-              "Location": {
-                "schema": {
-                  "type": "string"
-                },
-                "description": "单任务摘要相对URL"
               }
             }
           },
@@ -281,66 +273,8 @@
               }
             }
           }
-        }
-      }
-    },
-    "/api/v1/export-tasks/{taskId}": {
-      "get": {
-        "operationId": "getExportTask",
-        "summary": "读取权威受理回执",
-        "parameters": [
-          {
-            "name": "taskId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "当前权威摘要",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskSummary"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "安全错误；创建结果不明的 outcome 为 UNKNOWN",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "安全错误；创建结果不明的 outcome 为 UNKNOWN",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "安全错误；创建结果不明的 outcome 为 UNKNOWN",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          }
-        }
+        },
+        "description": "确认任务、幂等登记和命令Outbox事务提交后返回201；同键同请求核对已提交返回200。前端无需二次查询，成功留在订单页；不等待MQ或Excel。提交不明以原POST及原幂等键重试。"
       }
     },
     "/api/v1/export-tasks/{taskId}/file": {
@@ -684,18 +618,16 @@
           }
         }
       },
-      "TaskSummary": {
+      "CreateExportResponse": {
         "type": "object",
         "additionalProperties": false,
+        "description": "仅已确认提交的创建标识与配置，不包含进行中状态、进度或文件元数据。",
         "required": [
           "taskId",
           "taskNo",
           "scopeType",
           "totalCount",
           "fields",
-          "status",
-          "processedCount",
-          "progressPercent",
           "createdAt"
         ],
         "properties": {
@@ -727,43 +659,8 @@
               "$ref": "#/components/schemas/ExportField"
             }
           },
-          "status": {
-            "type": "string",
-            "enum": [
-              "PENDING",
-              "RUNNING",
-              "SUCCEEDED",
-              "FAILED"
-            ]
-          },
-          "processedCount": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 200000
-          },
-          "progressPercent": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 100
-          },
           "createdAt": {
             "$ref": "#/components/schemas/UtcInstant"
-          },
-          "finishedAt": {
-            "$ref": "#/components/schemas/UtcInstant"
-          },
-          "errorCode": {
-            "type": "string"
-          },
-          "errorSummary": {
-            "type": "string"
-          },
-          "fileName": {
-            "type": "string"
-          },
-          "fileSize": {
-            "type": "integer",
-            "minimum": 1
           }
         }
       },

@@ -1,12 +1,12 @@
 # 本次决策定稿记录
 
-**日期／版本**：2026-10-07／草稿0.3。**决策状态**：项目负责人要求“解决下所有待决策项，按你的建议来”，据此接受建议并定稿；规格整体审批与测试阶段审批仍未给出。关联[spec](spec.md)、[plan](plan.md)、[tasks](tasks.md)、[research](research.md)、[版本表](dependency-versions.md)、[ADR-0008](../../docs/adr/0008-worker-execution-lease-and-recovery.md)、[ADR-0009](../../docs/adr/0009-engineering-runtime-and-progress-notification.md)。
+**日期／版本**：2026-10-11／草稿0.4（保留2026-10-07决策依据）。**决策状态**：项目负责人要求“解决下所有待决策项，按你的建议来”，据此接受建议并定稿；规格整体审批与测试阶段审批仍未给出。关联[spec](spec.md)、[plan](plan.md)、[tasks](tasks.md)、[research](research.md)、[版本表](dependency-versions.md)、[ADR-0008](../../docs/adr/0008-worker-execution-lease-and-recovery.md)、[ADR-0009](../../docs/adr/0009-engineering-runtime-and-progress-notification.md)。
 
 ## 逐项结论
 
 | 事项 | 已确定方案 | 归属／后续验证 |
 | --- | --- | --- |
-| D-01 范围 | 真实查询、受理、投递、消费、Excel、单任务回执与下载 | [产品阶段](../../docs/product/order-export-prd.md#612-订单管理分阶段规格待评审)；完整任务页和SSE仍延期 |
+| D-01 范围 | 前端真实订单查询与任务创建；后端受理、投递、消费、Excel、进度持久化、恢复及下载；前端任务状态及详情取消本期实施 | [产品阶段](../../docs/product/order-export-prd.md#612-订单管理分阶段规格待评审)；完整任务页和SSE仍延期 |
 | D-02 执行与恢复 | MySQL owner/fence/lease、条件心跳、原未确认命令有界接管、块断点、READY对账与采用/清理互斥；无可信断点仅在安全重复已证明时重建 | [ADR-0008](../../docs/adr/0008-worker-execution-lease-and-recovery.md)接受此子集；用户暂停/显式恢复与跨主机存储不纳入当前MVP |
 | D-03 幂等 | SHA-256、规范化版本1、ID去重排序、保留字段顺序；异载荷409 IDEMPOTENCY_KEY_REUSED | [HTTP](contracts/http-api.md)；TC-217/218 |
 | D-04 事务 | READ COMMITTED；锁序task→outbox→execution→checkpoint→artifact/candidate→attempt，省略只能向后；SKIP LOCKED逐task裁决 | [模型](data-model.md)；真实MySQL并发验证 |
@@ -18,6 +18,8 @@
 | D-10 查询数据 | UTC秒/DATETIME(0)、DECIMAL(18,2)、keyword literal LIKE和as_ci、订单号bin精确比较；初始化后只读，Java21源文件模式运行独立JDBC PreparedStatement工具，不依赖未选择的MySQL CLI/ODBC；排序切换保留同筛选选择 | [模型](data-model.md)、[HTTP](contracts/http-api.md)；稳定keyset按created_at/id倒序 |
 | D-11 客户端请求 | 查询/创建均10秒；创建不自动重试或换键；UNKNOWN冻结原载荷原键；键16–128安全ASCII，客户端UUID | [HTTP](contracts/http-api.md)；同次重试确认 |
 | D-12 参考测量 | 当前Windows本机参考配置；API预热30次/200样本/单客户端；真实Excel每规模5次串行测量，全部5次须达标；独立512MB JVM | 下方参考环境与[tasks](tasks.md#sc验证映射)；完整块读取/落盘/装配/校验/发布计时 |
+| D-13 前端API文件组织 | 2026-10-11负责人明确要求API全部提取到一个专门文件；本规格统一设计为 `frontend/src/shared/api/api.ts`，本期集中订单查询与任务创建；后续列表/SSE/下载仍统一在该文件扩展，单任务详情取消；底层HTTP和错误处理保留公共职责文件 | [计划](plan.md#通用能力与仅设计能力)、[函数设计](function-design-reference.md#frontendsrcsharedapiapits)、[任务](tasks.md#实施与测试任务)；本次只修改规格文档，实际文件迁移及实现仍须两次门禁批准 |
+| D-14 创建反馈与前后端范围 | 2026-10-11负责人明确“不要任务详情的东西”“只是前端不用关注”；创建POST确认事务提交后直接返回创建结果，前端提示成功并留在订单页，不二次GET确认；后端完整执行/Excel/恢复/下载链路保留，任务状态界面/SSE另规格 | [产品基线](../../docs/product/acceptance-criteria.md#ac-072)、[HTTP](contracts/http-api.md#创建结果与前端边界)、[任务](tasks.md#ac实现任务映射)；取消详情GET/Location/页面，撤出旧跳转及回执验收；此次仍仅修订文档 |
 
 ## 文件及执行参数
 

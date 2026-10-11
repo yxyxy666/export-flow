@@ -8,14 +8,14 @@
 
 返回 200 `PageResult<OrderDto>`。列表 time DESC/id DESC 为默认；可选 ASC 同时切换两列。空页正常返回 items=[] 和权威 total。count与分页读在短只读事务中完成，初始化后只读前提下无需长快照事务。后端每页最多 100，不能用本接口加载整个导出范围。
 
-## 创建
+## 创建任务接口
 
 `POST /api/v1/export-tasks`，必填 `Idempotency-Key`，JSON `CreateExportRequest`。SELECTED 与 FILTERED 为判别联合，不允许混合、客户端 total 或任务状态；fields 保持顺序。前端标准选择按页面九列顺序序列化，API 有序字段支持调用者明确选择，后端不擅自重排。字段默认／最少一项及本期文件边界见[已确认基线](../../../docs/product/acceptance-criteria.md#订单管理分阶段交付候选)。
 
 | HTTP | code／结果 | 前后端处理 |
 | --- | --- | --- |
-| 201 | 首次 `TaskSummary`，outcome 不需要出现在成功体 | 已确认创建事务提交；Location 指向摘要端点；HTTP 不等待 MQ |
-| 200 | 同键同请求重放 `TaskSummary` | 当前摘要可能已 FAILED，不强行回 PENDING；不新增 Outbox |
+| 201 | 首次 `CreateExportResponse`，outcome 不需要出现在成功体 | 已确认任务/幂等登记/命令Outbox事务提交；直接返回创建结果，前端不追加确认查询；HTTP不等待MQ或Excel |
+| 200 | 同键同请求重放 `CreateExportResponse` | 返回原任务的创建标识和配置；执行状态已变化也不改写或重建任务；不新增Outbox |
 | 400 | VALIDATION_ERROR、EMPTY_EXPORT_SCOPE、INVALID_EXPORT_FIELDS | 明确拒绝，outcome=REJECTED，无任务 |
 | 409 | IDEMPOTENCY_KEY_REUSED | 同键不同摘要，明确拒绝；不能返回旧任务掩盖冲突 |
 | 413 | REQUEST_TOO_LARGE | UTF8 JSON文档超过16MiB，反序列化阶段明确拒绝，outcome=REJECTED |
@@ -26,9 +26,13 @@
 
 事务唯一约束冲突后必须结束／回滚当前事务，再以新事务回读已提交幂等登记。提交异常时先新连接回读同键摘要；核对已提交才返回成功，确认同键冲突才拒绝；DB 不可读／未能判定返回 UNKNOWN，不把异常名称当回滚证明。即使 503 的 UNKNOWN 响应丢失，前端仍以原键重试。新建任务号采用 `EXP{香港日期}-{UUID去横线大写}`，完整UUID作为唯一性设计，DB unique再裁决；人类文件名按PRD及本期Excel方案固定。
 
-## 权威回执
+## 创建结果与前端边界
 
-`GET /api/v1/export-tasks/{taskId}`，返回 200 `TaskSummary`，不存在 404 `TASK_NOT_FOUND`。本期提供单任务摘要及文件下载；不实现完整任务列表、失败重试或SSE。任务管理路由 `/export-tasks?taskId={id}` 展示回执、实际进度/错误、成功文件元数据、下载、单次手动刷新及返回订单管理；直接访问无 taskId 时仍可展示页面标题与阶段说明。创建成功后跳转此路由，保持统一菜单名称。
+201与200成功体统一为 `CreateExportResponse`：taskId、taskNo、scopeType、totalCount、有序fields、createdAt。后端完成提交确认或同键核对后直接响应；成功体不含进行中的状态、进度、错误或文件元数据，不返回指向任务详情的Location。客户端无需GET确认创建成功。
+
+前端在订单页提示“导出任务已创建”及任务编号，关闭配置、清空选择并恢复编辑，保留筛选、内存关键字、页码、页大小和排序；不自动导航，不发任务查询、SSE或轮询。结果不明仍用原POST、原请求和原幂等键核对，不新增确认接口。
+
+本期取消单任务详情查询接口和详情页；任务页保持静态占位。后续任务管理集中展示全部任务状态，并通过初始列表快照和SSE更新等待中、生成中、已完成及失败，包含终态变化；具体协议遵循已接受通知架构，由后续规格定义。后端本期继续真实消费、生成、恢复、记录进度与结果及提供下载接口。
 
 ## URL、编辑表单和请求竞争
 
@@ -42,7 +46,7 @@
 
 `EDITING -> SUBMITTING -> CONFIRMED | REJECTED | UNKNOWN`。confirm 前固定 scope、fields 和 key；SUBMITTING/UNKNOWN 时禁止更改这份提交、取消其结果归属或发第二份新键请求。UNKNOWN 可点击“重试确认”走同一 payload/key；可离开页面，但要明确“结果尚未确认，重新进入后可在后续完整任务功能中核对”，本期不声称跨刷新自动找回。离开不能撤销已受理任务。
 
-明确拒绝保留字段和选择，返回编辑态，纠正后视作新意图使用新键。确认成功清选择、失效相应任务快照缓存并跳转；返回错误不能清选择。空筛选结果、未选择、加载中、失效结果必须在按钮旁给出文字原因，不能只靠 hover。新打开的对话框默认九列；明确失败重开同一未完成配置保留字段；明确取消后下次全新配置恢复默认。
+明确拒绝保留字段和选择，返回编辑态，纠正后视作新意图使用新键。创建接口确认成功后，Hook先保存CONFIRMED及创建结果，再统一清选择、关闭配置、显示任务编号并恢复焦点，留在当前订单页面，不查询任务或更改订单查询状态；返回错误不能清选择。确认与同键重试共用Hook内部的结果处理方法；提交用例只返回快照，不执行页面操作。页面清理/通知异常独立处理，不能把成功改成UNKNOWN或再次创建任务。空筛选结果、未选择、加载中、失效结果必须在按钮旁给出文字原因，不能只靠 hover。新打开的对话框默认九列；明确失败重开同一未完成配置保留字段；明确取消后下次全新配置恢复默认。
 
 无服务端幂等任务取消接口，关闭请求不是撤销事务。前端请求取消或无响应一律按 UNKNOWN 保留本次意图，不能把 AbortError 直接展示为“创建失败”。
 
@@ -50,7 +54,7 @@
 
 `GET /api/v1/export-tasks/{taskId}/file`返回成功xlsx文件流，MIME为`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`，Content-Length来自实际文件，Content-Disposition包含安全ASCII fallback及UTF-8 filename*。任务ID仅用于查MySQL已提交的成功产物引用，不允许客户端提供文件名或物理路径。不存在任务404 TASK_NOT_FOUND；非成功409 TASK_NOT_DOWNLOADABLE；成功引用文件缺失410 EXPORT_FILE_MISSING并告警；DB不可读503；权限或其他确定IO错误安全500。流响应开始后客户端断开只释放文件句柄，不回滚任务或返回伪造JSON。下载流不持有数据库事务/执行租约。
 
-前端仅成功回执渲染同源anchor，其他状态禁用并显示原因；不fetch Blob，不在JS内存保存文件，浏览器下载错误受直接链接限制，以手工真实浏览器验证。文件与任务永久保留，主动删除与重新生成成功文件不在本期。详细身份与安全边界见[Excel方案](../excel-design.md#文件身份就绪登记及下载)。
+本期前端不提供下载操作或生成结果展示。后端下载流、响应头、安全路径、非成功拒绝和成功文件可打开性通过自动化及直接HTTP/浏览器URL验证；后续任务页再实现成功任务的同源anchor、非成功禁用及可见原因，不fetch Blob或在JS内存保存文件。文件与任务永久保留，主动删除与重新生成成功文件不在本期。详细身份与安全边界见[Excel方案](../excel-design.md#文件身份就绪登记及下载)。
 
 ## 已定协议参数
 

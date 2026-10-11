@@ -1,6 +1,6 @@
 # Excel 生成、异常恢复与文件下载设计
 
-**日期／版本**：2026-10-07／草稿 0.3。负责人已明确本次规格包含真实 Excel；本文只作设计，不产生实现或测试代码。由 [plan](plan.md) 直接引用，与 [spec](spec.md)、[tasks](tasks.md)、[函数清单](function-design.md) 一并审批。架构来源为已接受技术栈及 [ADR-0008](../../docs/adr/0008-worker-execution-lease-and-recovery.md) 已接受的执行恢复子集；批准依据见[决策记录](decision-record.md)，规格整体仍待审。
+**日期／版本**：2026-10-11／草稿 0.4。负责人已明确本次规格包含真实 Excel；本文只作设计，不产生实现或测试代码。由 [plan](plan.md) 直接引用，与 [spec](spec.md)、[tasks](tasks.md)、[函数清单](function-design.md) 一并审批。架构来源为已接受技术栈及 [ADR-0008](../../docs/adr/0008-worker-execution-lease-and-recovery.md) 已接受的执行恢复子集；批准依据见[决策记录](decision-record.md)，规格整体仍待审。
 
 ## 已确定范围与设计决策
 
@@ -42,13 +42,13 @@ flowchart TD
   XLSX --> VERIFY[关闭 串流校验 行数字段和校验和]
   VERIFY --> PUBLISH[同卷原子发布不可变产物]
   PUBLISH --> PROOF[持有效执行权登记就绪证明]
-  PROOF --> CHECK
+  PROOF --> SUCCESS
   CHECK --> SUCCESS[任务成功及唯一产物引用同事务]
   SUCCESS --> ACK[确认终态后ACK]
   SUCCESS --> FILE[成功引用可下载]
 ```
 
-就绪／断点／业务终态必须先回读数据库，文件存在不能证明提交成功。所有长期文件写入与校验在事务外；只在短事务内裁决权利、登记引用和推进版本。ACK留在最终终态，异常恢复依赖原命令重交付，不扫描RUNNING创建新命令。
+就绪／断点／业务终态必须先回读数据库，文件存在不能证明提交成功。所有长期文件写入与校验在事务外；只在短事务内裁决权利、登记引用和推进版本。ACK留在最终终态，异常恢复依赖原命令重交付，不扫描RUNNING创建新命令。新文件发布前只校验一次，READY登记后直接进入成功事务；只有复用已有READY时重新校验。
 
 ## 数据读取与块断点
 
@@ -70,9 +70,9 @@ flowchart TD
 
 数据全部写完后，调用一次`workbook.write`将这些临时sheet数据串流封装到attempt下的`.xlsx.part`。XLSX是ZIP容器，逐批重复write/追加不是合法续写方式；生成期间的sheet临时文件与最终待发布`.xlsx.part`职责不同。关闭全部输出、校验并force完成后，以同卷原子移动将该待发布结果改名为正式`.xlsx`；移动或校验失败时不登记READY、不提交成功、不提供下载，仍保留可信恢复数据。正式文件物理存在后仍须完成READY及唯一成功引用事务才可下载。
 
-SXSSF私有临时文件不作跨进程断点。组装中断保留已登记的数据块，并用新attempt重新装配。工作簿、sheet临时文件、输出流使用结构化关闭；close与dispose异常分别记录，不能清理其他attempt的数据块。POI临时目录在进程启动时固定为受控scratch，禁止每任务改全局TempFile策略；同一进程所有POI文件可识别、由当前工作簿dispose。崩溃残留scratch只有确认对应进程/attempt停止且无引用后清理。具体刷盘函数见[函数清单](function-design.md)，实际故障验证见[tasks](tasks.md)。
+SXSSF私有临时文件不作跨进程断点。组装中断保留已登记的数据块，并用新attempt重新装配。工作簿、sheet临时文件、输出流使用结构化关闭；close与dispose异常分别记录，不能清理其他attempt的数据块。POI临时目录在进程启动时固定为受控scratch，禁止每任务改全局TempFile策略；同一进程所有POI文件可识别、由当前工作簿dispose。崩溃残留scratch只有确认对应进程/attempt停止且无引用后清理。具体刷盘函数见[装配器附录](function-design-reference.md#backendsrcmainjavacomexportflowworkerinfrastructureexcelexcelworkbookassemblerjava)，实际故障验证见[tasks](tasks.md)。
 
-文件校验采用Apache POI OPCPackage/XSSFReader+SAX流式读取，禁止为了校验用XSSFWorkbook全量加载。检查ZIP可读、单工作表、预期表头/顺序、每行列数、业务行数、文本金额/时区/枚举结构、字符串而非公式单元格；测试再用固定源逐行比对内容。SHA-256流式计算，产物校验完成才允许READY。
+文件存储端口resolve只做安全路径定位，ExcelFileValidator.validate统一接收安全Path、StorageRef、TaskSnapshot及ExecutionGuard，返回ValidatedWorkbook。临时与正式引用走同一校验函数，依赖暂不可读/失权归UNKNOWN，不能当文件损坏。文件校验采用Apache POI OPCPackage/XSSFReader+SAX流式读取，禁止为了校验用XSSFWorkbook全量加载。检查ZIP可读、单工作表、预期表头/顺序、每行列数、业务行数、文本金额/时区/枚举结构、字符串而非公式单元格；测试再用固定源逐行比对内容。SHA-256流式计算，产物校验完成才允许READY。
 
 ## 文件身份、就绪登记及下载
 
@@ -86,11 +86,11 @@ SXSSF私有临时文件不作跨进程断点。组装中断保留已登记的数
 
 根目录外部配置，不在仓库提交绝对路径。逻辑引用只使用服务端UUID和合法枚举；resolve normalize后须位于root，拒绝符号链接／Windows reparse逃逸，不能用HTTP文件名拼路径。就绪文件publish同卷ATOMIC_MOVE且无覆盖目标；不支持时明确失败并阻止该存储被启用，不偷偷改为可观察半成品的复制。文件内容force不宣称Windows目录元数据已具备宿主断电级保证，本期承诺进程退出/重启窗口，宿主磁盘灾难损坏不自动恢复成功文件。
 
-artifactId、taskId、dataGeneration、configurationHash、rowCount、size、checksum、逻辑引用和humanFileName构成就绪证明。生成者持有效owner/fence时事务登记READY；文件已存在但无证明为残留。接管者核对可信READY及真实文件，重新校验后可用新fence采用，成功与唯一resultArtifactId同事务提交；旧执行者不能覆盖选中的文件或登记新引用。成功提交不明先回读，不删候选产物或写FAILED。
+artifactId、taskId、dataGeneration、configurationHash、rowCount、size、checksum、逻辑引用和humanFileName构成就绪证明。生成者持有效owner/fence时事务登记READY；文件已存在但无证明为残留。接管者用同一校验器验证READY文件，实际引用/大小/SHA/行数/配置必须与数据库ArtifactProof相符，才可用新fence采用，成功与唯一resultArtifactId同事务提交；旧执行者不能覆盖选中的文件或登记新引用。成功提交不明先回读，不删候选产物或写FAILED。
 
 人类文件名 `订单导出_{yyyyMMdd-HHmmss}_{taskNo}.xlsx` 中时间为受理createdAt按Asia/Hong_Kong，不是生成完成时间；物理身份永不依赖人类文件名。成功记录和结果产物永久保留；只清理经DB裁决无有效attempt、无断点／就绪／成功引用且过grace的孤儿。采用与清理先取得同一候选行锁，cleanup状态阻止采用；正常扫描不会直接按文件年龄递归删除。未登记的磁盘孤儿须先登记清理候选、核对owner/fence失效及所有引用再删除，不能用无锁目录扫描判断安全。
 
-下载 `GET /api/v1/export-tasks/{taskId}/file`：短只读核对SUCCEEDED、resultArtifactId和元数据→安全resolve→核对实际可读、大小及存储中已校验的证明→以文件流响应；不在HTTP流期间持有DB事务/租约。Content-Type为xlsx MIME，Content-Length精确，Content-Disposition使用安全ASCII fallback与UTF-8 filename*，清除CR/LF危险字符。非成功409，任务不存在404，成功引用实际文件缺失返回410并告警，不能借此删除成功记录或自动重跑；DB不可读503。文件权限失败安全500，不返回物理路径。前端直接同源anchor，禁用理由可见，不fetch Blob。
+下载 `GET /api/v1/export-tasks/{taskId}/file`：短只读核对SUCCEEDED、resultArtifactId和元数据→安全resolve→核对实际可读、大小及存储中已校验的证明→以文件流响应；不在HTTP流期间持有DB事务/租约。Content-Type为xlsx MIME，Content-Length精确，Content-Disposition使用安全ASCII fallback与UTF-8 filename*，清除CR/LF危险字符。非成功409，任务不存在404，成功引用实际文件缺失返回410并告警，不能借此删除成功记录或自动重跑；DB不可读503。文件权限失败安全500，不返回物理路径。本期前端不展示任务详情、进度或下载按钮；该后端链路用真实HTTP/直接浏览器URL验证，后续任务管理界面再采用同源anchor、禁用理由，不fetch Blob。
 
 ## 异常执行与竞态裁决
 
