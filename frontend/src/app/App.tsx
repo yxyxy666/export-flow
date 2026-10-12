@@ -1,4 +1,4 @@
-// 设计与验证：specs/001-project-bootstrap/plan.md、tasks.md；本期仅静态骨架。
+// 设计：[订单计划](../../../specs/002-order-management/plan.md)；验证：[页面测试](../features/orders/__tests__/order-management.test.tsx)。
 import type { ReactElement } from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { AppProviders } from './app-providers';
@@ -8,5 +8,6 @@ const router = createAppRouter();
 
 /** 组合中文界面配置和唯一的应用路由入口。 */
 export function App(): ReactElement {
-  return <AppProviders><RouterProvider router={router} /></AppProviders>;
+  // URL与查询键同步切换，避免transition期间旧查询仍可操作；保留旧行由查询层控制。
+  return <AppProviders><RouterProvider router={router} useTransitions={false} /></AppProviders>;
 }

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 规格 function-design-reference.md；TC-217/218真实事务验证。 -->
+<mapper namespace="com.exportflow.exporttasks.infrastructure.persistence.ExportTaskMapper">
+  <sql id="columns">task_id,task_no,scope_type,filter_json,fields_json,total_count,processed_count,status,version,created_at,finished_at,error_code,error_summary,file_name,file_size,result_artifact_id</sql>
+  <insert id="insert">INSERT INTO export_tasks (<include refid="columns"/>) VALUES
+    (#{taskId},#{taskNo},#{scopeType},#{filterJson},#{fieldsJson},#{totalCount},#{processedCount},#{status},#{version},#{createdAt},#{finishedAt},#{errorCode},#{errorSummary},#{fileName},#{fileSize},#{resultArtifactId})</insert>
+  <insert id="insertScopeOrderIds">INSERT INTO export_task_orders(task_id,order_id) VALUES
+    <foreach collection="orderIds" item="id" separator=",">(#{taskId},#{id})</foreach></insert>
+  <select id="findSummary" resultType="com.exportflow.exporttasks.infrastructure.persistence.ExportTaskRecord">SELECT <include refid="columns"/> FROM export_tasks WHERE task_id=#{value}</select>
+  <select id="findSnapshot" resultType="com.exportflow.exporttasks.infrastructure.persistence.ExportTaskRecord">SELECT <include refid="columns"/> FROM export_tasks WHERE task_id=#{value}</select>
+  <select id="findScopeOrderIds" resultType="long">SELECT order_id FROM export_task_orders WHERE task_id=#{value} ORDER BY order_id</select>
+  <select id="lockTask" resultType="com.exportflow.exporttasks.infrastructure.persistence.ExportTaskRecord">SELECT <include refid="columns"/> FROM export_tasks WHERE task_id=#{value} FOR UPDATE</select>
+  <update id="failDispatchTimeout">UPDATE export_tasks SET status='FAILED',finished_at=#{endedAt},error_code='TASK_DISPATCH_TIMEOUT',error_summary='任务投递超时',version=version+1 WHERE task_id=#{taskId} AND status='PENDING'</update>
+  <select id="findIdempotency" resultType="com.exportflow.exporttasks.infrastructure.persistence.ExportTaskRecord$IdempotencyDbRecord">SELECT canonical_version,request_hash,task_id FROM export_idempotency WHERE key_hash=#{keyHash}</select>
+  <insert id="insertIdempotency">INSERT INTO export_idempotency(key_hash,canonical_version,request_hash,task_id) VALUES (#{submission.keyHash},#{submission.version},#{submission.requestHash},#{taskId})</insert>
+</mapper>

@@ -56,7 +56,7 @@ AGENTS.md > .specify/memory/constitution.md > docs/rules/ > specs/<feature-dir>/
 | `docs/adr/` | 不可逆或跨模块架构决策 | 决策落地前/后 |
 | `tests/` | 自动化测试和测试夹具 | 需求或行为变化时 |
 | `frontend/` | 可独立运行的静态前端；app、layouts、features、shared 分工见模块 README | 前端实现阶段 |
-| `backend/` | 后端职责结构；本期只有注释占位，尚非可运行服务 | 后端对应规格获批后实施 |
+| `backend/` | Java21/Spring Boot后端；订单0.4已授权实施，查询、受理、投递、执行、文件与恢复分层；验收状态见规格任务 | 后端对应规格获批后实施与验证 |
 | `docs/validation/` | 实际运行环境、命令、结构与页面验证证据 | 验证执行后据实维护 |
 
 ## 按任务查阅

@@ -10,7 +10,7 @@
 
 ## 创建任务接口
 
-`POST /api/v1/export-tasks`，必填 `Idempotency-Key`，JSON `CreateExportRequest`。SELECTED 与 FILTERED 为判别联合，不允许混合、客户端 total 或任务状态；fields 保持顺序。前端标准选择按页面九列顺序序列化，API 有序字段支持调用者明确选择，后端不擅自重排。字段默认／最少一项及本期文件边界见[已确认基线](../../../docs/product/acceptance-criteria.md#订单管理分阶段交付候选)。
+`POST /api/v1/export-tasks`，必填 `Idempotency-Key`，JSON `CreateExportRequest`。SELECTED 与 FILTERED 为判别联合，不允许混合、客户端 total 或任务状态；fields 保持顺序。前端标准选择按页面九列顺序序列化，API 有序字段支持调用者明确选择，后端不擅自重排。2026-10-12[003增量](../../003-select-all-filtered/contracts/export-scope.md)增加FILTERED.excludedOrderIds可选字符串ID数组（最多200000项，空数组兼容旧请求）；SELECTED禁止该字段。排除ID须存在，只有与filter的交集减少受理数量；排除关联随任务持久化并用于执行和恢复。fields、消息和响应仍保持旧协议。字段默认／最少一项及本期文件边界见[已确认基线](../../../docs/product/acceptance-criteria.md#订单管理分阶段交付候选)。
 
 | HTTP | code／结果 | 前后端处理 |
 | --- | --- | --- |
@@ -19,7 +19,7 @@
 | 400 | VALIDATION_ERROR、EMPTY_EXPORT_SCOPE、INVALID_EXPORT_FIELDS | 明确拒绝，outcome=REJECTED，无任务 |
 | 409 | IDEMPOTENCY_KEY_REUSED | 同键不同摘要，明确拒绝；不能返回旧任务掩盖冲突 |
 | 413 | REQUEST_TOO_LARGE | UTF8 JSON文档超过16MiB，反序列化阶段明确拒绝，outcome=REJECTED |
-| 422 | EXPORT_LIMIT_EXCEEDED、ORDER_SELECTION_INVALID | details 含 currentCount/limit；不存在选择拒绝整笔；不静默截断 |
+| 422 | EXPORT_LIMIT_EXCEEDED、ORDER_SELECTION_INVALID | 超限时details含currentCount/limit；不存在选择或排除ID拒绝整笔；不静默截断 |
 | 503 | CREATE_OUTCOME_UNKNOWN | 无法确定事务提交，outcome=UNKNOWN；原键原请求核对 |
 | 503 | DEPENDENCY_UNAVAILABLE | 仅明确未提交／已回滚才 outcome=REJECTED；否则 UNKNOWN |
 | 500 | INTERNAL_ERROR | 不能证明回滚则 UNKNOWN；安全文案与 traceId，无原始异常 |

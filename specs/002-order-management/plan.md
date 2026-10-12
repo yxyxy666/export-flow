@@ -1,7 +1,7 @@
 # 实施计划：订单管理与后端异步流程
 
 **功能标识**：`002-order-management` | **日期／版本**：2026-10-11／草稿 0.4 | **规格**：[spec.md](spec.md)
-**当前阶段**：文档准备完成待评审；未创建测试或生产实现。尚未新建功能分支。
+**当前阶段**：0.4规格已批准；2026-10-11负责人明确授权开始开发。前后端链路已实施，开发后的统一[代码review](../../docs/validation/002-order-management/code-review.md)正在修复并回归；内部文件与函数增补见[实施说明](implementation-notes.md)，实际批次及未完成验证见[实施进度](../../docs/validation/002-order-management/implementation-progress.md)。未新建功能分支。
 
 ## 摘要
 
@@ -24,6 +24,8 @@
 
 本期前端到第2步结束；第3至第6步是后端链路，通过后端测试与直接HTTP验证。任务管理页面保持静态占位，状态展示和SSE由后续任务规格承接。
 
+2026-10-13运行目录修订：按负责人要求，文件根改为项目export-data，整个运行目录被Git忽略；本机外部配置为该目录绝对路径，application.yml未指定覆盖值时使用user.dir/export-data，标准启动入口固定工作目录为项目根。职责与分层继续见[Excel存储方案](excel-design.md#文件身份就绪登记及下载)，此次只调整运行配置和既有文档，不新增函数或规格，不重启应用、不复制负责人已删除的旧文件。
+
 ```mermaid
 flowchart LR
   U[订单页提交] --> C[创建接口]
@@ -45,11 +47,11 @@ flowchart LR
 
 | 项目 | 已确认与待确认范围 |
 | --- | --- |
-| 前端 | 既有 React/TS/Vite/Ant Design/Router 锁定版本复用；已接受 Query/RHF/Zod 选型，新增版本见[版本表](dependency-versions.md)，运行兼容未验证 |
+| 前端 | React/TS/Vite/Ant Design/Router锁定版本复用，Query/RHF/Zod已实施；新增版本见[版本表](dependency-versions.md)，自动化、类型和构建已有通过证据，目标浏览器仍待验证 |
 | 后端 | Java 21、Spring Boot 3、Spring MVC、Maven Wrapper、MyBatis、Flyway、MySQL 8.4；Spring Boot3.5.16及依赖矩阵见[版本表](dependency-versions.md) |
 | 异步 | RabbitMQ 命令、MySQL Outbox；Redis最新进度缓存是未来接入边界；本期不连接Redis推测状态 |
 | 当前运行条件 | 用户确认三类中间件已在Docker启动；2026-10-07只读docker ps核对三个既有容器healthy，见research；本次未连接或修改业务数据 |
-| 测试 | 已接受前端Vitest/Testing Library/MSW，无浏览器E2E门禁；后端JUnit/MockMvc/Testcontainers已由ADR-0009接受 |
+| 测试 | 已接受前端Vitest/Testing Library/MSW，无浏览器E2E门禁；后端JUnit/MockMvc及真实共享服务内隔离已由ADR-0009接受；2026-10-11按负责人要求取消独立测试容器 |
 | 目标与规模 | 订单只读，页大小受限，单任务上限；性能目标引用[规格](spec.md#成功标准)和[验证映射](tasks.md#sc验证映射)，不以mock或一次运行判成功 |
 | 运行与交付 | 复用现有服务；schema/vhost、应用端口、精确版本和性能参考环境已在[决策记录](decision-record.md)定稿；本次不新建Compose/CI/发布流程 |
 
@@ -58,12 +60,12 @@ flowchart LR
 | 检查项 | 状态与依据 |
 | --- | --- |
 | 风险与架构 | 高风险，并发幂等、期限裁决、领取租约；已接受ADR覆盖受理投递；执行权子集依赖[已接受架构子集](../../docs/adr/0008-worker-execution-lease-and-recovery.md) |
-| 研究前治理检查 | 已阅读项目治理、产品、规则及架构；仅文档工作，不执行实现 |
+| 研究前治理检查 | 历史规格阶段仅文档工作；现已按两次授权进入实施，实际依据见任务审批记录 |
 | 结构与函数 | 目录／逐文件／函数／类型／调用链均给出；文档自检不构成人类批准 |
 | 设计后检查 | 已确认设计与未执行验证分开记录；真实Excel/异常恢复/下载已入范围；完整任务页、SSE/Redis/用户暂停另期；风险回退见下文 |
-| 核心与附属产物审批 | 未批准；[tasks](tasks.md#审批记录)记录范围与版本 |
-| 测试阶段 | 未开始；测试代码未编写、未执行；不能把容器healthy视为集成环境已验证 |
-| 第二门禁 | 未检查／未批准；生产工程、迁移、真实生成及业务适配器均不得提前写入 |
+| 核心与附属产物审批 | 0.4已批准；[tasks](tasks.md#审批记录)记录范围、日期与依据 |
+| 测试阶段 | 0.4-test-03已提交，场景补充完成；运行阻塞及真实装配缺口继续保留，实际执行见[tasks](tasks.md#测试进度与证据) |
+| 第二门禁与实施 | 2026-10-11负责人明确“可以开始开发了”；按既有规格实施，恢复缺失模块后执行原测试，不将跳过或阻塞计为通过，详见[tasks](tasks.md#审批记录) |
 
 ### 逐文件职责与函数设计
 
@@ -135,7 +137,7 @@ flowchart TD
 
 ### 通用能力与仅设计能力
 
-本期前端业务API集中设计在 `frontend/src/shared/api/api.ts`，只实现queryOrders和createExportTask；功能Hook与用例统一调用。任务详情API取消，任务列表/SSE与前端下载地址函数留后续任务管理规格。统一文件引用独立协议类型及响应schema，JSON请求复用http-client，错误归一化复用api-error；schema与类型不反向依赖API文件，也不引入UI层依赖。实施时新增统一API文件，删除现有 `frontend/src/features/orders/api/orders-api.ts` 与 `frontend/src/features/export-tasks/api/export-tasks-api.ts` 注释占位，并同步模块README和相关工程说明。错误、金额、UTC/香港格式化供订单展示及创建反馈；分页类型供协议适配。领域值类型限定本功能，不新增泛化框架。已有导航、Layout、404和错误恢复全部复用，无业务签名修改。2026-10-11按负责人要求仅修订规格文档，实际迁移及业务实现仍遵循原两次审批门禁。
+本期前端业务API集中设计在 `frontend/src/shared/api/api.ts`，只实现queryOrders和createExportTask；功能Hook与用例统一调用。任务详情API取消，任务列表/SSE与前端下载地址函数留后续任务管理规格。统一文件引用独立协议类型及响应schema，JSON请求复用http-client，错误归一化复用api-error；schema与类型不反向依赖API文件，也不引入UI层依赖。实施时新增统一API文件，删除现有 `frontend/src/features/orders/api/orders-api.ts` 与 `frontend/src/features/export-tasks/api/export-tasks-api.ts` 注释占位，并同步模块README和相关工程说明。错误、金额、UTC/香港格式化供订单展示及创建反馈；分页类型供协议适配。领域值类型限定本功能，不新增泛化框架。已有导航、Layout、404和错误恢复全部复用，无业务签名修改。2026-10-11早先仅修订规格文档；同日负责人明确授权开始开发后，统一API及旧API占位删除已落实。按“不要需要的要删除”追加清理无调用方的任务表格/查询Hook占位；创建类型/schema和静态任务页保留，实施进度及未完成项见[证据](../../docs/validation/002-order-management/api-implementation.md)。
 
 本期真实Excel、批读/数据块断点、就绪文件对账、异常接管、发布与下载见[Excel方案](excel-design.md)与[Worker契约](contracts/worker-boundary.md)，全部关联函数/类型/测试。后续仅Redis/SSE、完整任务列表、失败重试页面、用户暂停/显式恢复及跨主机存储。所有文件性能/资源/准确性指标本期独立验证，不能以无实际运行的方案判通过。
 
@@ -151,7 +153,7 @@ flowchart TD
 
 ## 复杂度追踪
 
-当前未请求违反治理门禁的例外。幂等表、尝试表、执行权端口用于已确认并发与诊断边界；执行权架构根据负责人“按你的建议来”明确决策接受子集。全部技术待决已定稿，见[决策记录](decision-record.md)与[精确版本](dependency-versions.md)。规格及测试阶段的两次审批仍未批准；实际环境、兼容和行为验证未执行，不以设计结论替代证据。
+当前未请求违反治理门禁的例外。幂等表、尝试表、执行权端口用于已确认并发与诊断边界；执行权架构根据负责人“按你的建议来”明确决策接受子集。全部技术待决已定稿，见[决策记录](decision-record.md)与[精确版本](dependency-versions.md)。0.4规格及测试先行/开发授权均已记录，历史缺口和当前回归分开保存；不以设计或授权替代验收证据。
 
 ## 本期 Excel 逐文件与函数设计入口
 
@@ -183,191 +185,209 @@ specs/002-order-management/
     └── openapi.yaml
 ```
 
-按负责人本次授权同步产品条目、架构接受子集、工程规则、决策记录及精确版本表；没有自动批准规格或实施。以下树是**后续按门禁实施的目标树**，不是现在已生成的文件。没有变化的入口及页面框架列为复用；后续项保留现有注释占位；执行后证据不提前创建。
+按负责人本次授权同步产品条目、架构接受子集、工程规则、决策记录及精确版本表；没有自动批准规格或实施。以下树同时列出**后续按门禁实施的生产目标**和已落地的测试文件；测试补充职责与签名见[测试附录](function-design-reference.md#本轮场景补充文件与函数)。生产项不能据目录树视为已生成。没有变化的入口及页面框架列为复用；后续项保留现有注释占位；执行后证据不提前创建。
 
 ```text
-├── AGENTS.md  [修改（实施后，仅地图）]
 ├── backend
 │   ├── .mvn
 │   │   └── wrapper
 │   │       └── maven-wrapper.properties  [新增]
+│   ├── src
+│   │   ├── main
+│   │   │   ├── java
+│   │   │   │   └── com
+│   │   │   │       └── exportflow
+│   │   │   │           ├── config
+│   │   │   │           │   ├── RuntimeConfiguration.java  [修改占位]
+│   │   │   │           │   └── RuntimeProperties.java  [新增]
+│   │   │   │           ├── dispatch
+│   │   │   │           │   ├── application
+│   │   │   │           │   │   ├── DispatchScheduler.java  [新增]
+│   │   │   │           │   │   ├── OutboxDispatchService.java  [修改占位]
+│   │   │   │           │   │   └── OutboxTimeoutService.java  [新增]
+│   │   │   │           │   ├── domain
+│   │   │   │           │   │   ├── CommandOutbox.java  [修改占位]
+│   │   │   │           │   │   └── DispatchModels.java  [新增]
+│   │   │   │           │   ├── infrastructure
+│   │   │   │           │   │   ├── messaging
+│   │   │   │           │   │   │   ├── ExportCommandCodec.java  [新增]
+│   │   │   │           │   │   │   └── RabbitMqExportCommandPublisher.java  [修改占位]
+│   │   │   │           │   │   └── persistence
+│   │   │   │           │   │       ├── CommandOutboxMapper.java  [修改占位]
+│   │   │   │           │   │       ├── CommandOutboxRecord.java  [新增]
+│   │   │   │           │   │       ├── MyBatisCommandOutboxRepository.java  [修改占位]
+│   │   │   │           │   │       └── OutboxPersistenceMapper.java  [新增]
+│   │   │   │           │   └── port
+│   │   │   │           │       ├── CommandOutboxRepository.java  [修改占位]
+│   │   │   │           │       └── ExportCommandPublisher.java  [修改占位]
+│   │   │   │           ├── exporttasks
+│   │   │   │           │   ├── api
+│   │   │   │           │   │   ├── ExportTaskApiMapper.java  [新增]
+│   │   │   │           │   │   ├── ExportTaskApiModels.java  [新增]
+│   │   │   │           │   │   └── ExportTaskController.java  [修改占位]
+│   │   │   │           │   ├── application
+│   │   │   │           │   │   ├── CreateExportTaskService.java  [修改占位]
+│   │   │   │           │   │   ├── CreateExportTransaction.java  [新增]
+│   │   │   │           │   │   ├── DownloadExportFileService.java  [修改占位；本期实现]
+│   │   │   │           │   │   ├── ExportRangeService.java  [新增]
+│   │   │   │           │   │   ├── ExportRequestCanonicalizer.java  [新增]
+│   │   │   │           │   │   └── ExportTaskQueryService.java  [删除无用占位；后续规格再定义]
+│   │   │   │           │   ├── domain
+│   │   │   │           │   │   ├── ExportField.java  [新增]
+│   │   │   │           │   │   ├── ExportFileModels.java  [新增]
+│   │   │   │           │   │   ├── ExportScope.java  [新增]
+│   │   │   │           │   │   ├── ExportTask.java  [修改占位]
+│   │   │   │           │   │   └── ExportTaskModels.java  [新增]
+│   │   │   │           │   ├── infrastructure
+│   │   │   │           │   │   ├── cache
+│   │   │   │           │   │   │   └── RedisExportProgressCache.java  [删除无用占位；后续规格再定义]
+│   │   │   │           │   │   ├── file
+│   │   │   │           │   │   │   └── LocalExportFileStorage.java  [修改占位；本期实现]
+│   │   │   │           │   │   └── persistence
+│   │   │   │           │   │       ├── ArtifactMapper.java  [新增；架构决策已确认]
+│   │   │   │           │   │       ├── ArtifactRecord.java  [新增]
+│   │   │   │           │   │       ├── ExportTaskMapper.java  [修改占位]
+│   │   │   │           │   │       ├── ExportTaskPersistenceMapper.java  [新增]
+│   │   │   │           │   │       ├── ExportTaskRecord.java  [新增]
+│   │   │   │           │   │       ├── MyBatisArtifactRepository.java  [新增；架构决策已确认]
+│   │   │   │           │   │       ├── MyBatisExportTaskRepository.java  [修改占位]
+│   │   │   │           │   │       └── MyBatisIdempotencyRepository.java  [新增]
+│   │   │   │           │   └── port
+│   │   │   │           │       ├── ArtifactRepository.java  [新增；架构决策已确认]
+│   │   │   │           │       ├── ExportFileStorage.java  [修改占位；本期实现]
+│   │   │   │           │       ├── ExportProgressCache.java  [删除无用占位；后续规格再定义]
+│   │   │   │           │       ├── ExportTaskRepository.java  [修改占位]
+│   │   │   │           │       └── IdempotencyRepository.java  [新增]
+│   │   │   │           ├── orders
+│   │   │   │           │   ├── api
+│   │   │   │           │   │   ├── OrderApiMapper.java  [新增]
+│   │   │   │           │   │   ├── OrderApiModels.java  [新增]
+│   │   │   │           │   │   └── OrderController.java  [修改占位]
+│   │   │   │           │   ├── application
+│   │   │   │           │   │   └── OrderQueryService.java  [修改占位]
+│   │   │   │           │   ├── domain
+│   │   │   │           │   │   ├── Order.java  [修改占位]
+│   │   │   │           │   │   └── OrderQuery.java  [新增]
+│   │   │   │           │   ├── infrastructure
+│   │   │   │           │   │   └── persistence
+│   │   │   │           │   │       ├── MyBatisOrderRepository.java  [修改占位]
+│   │   │   │           │   │       ├── OrderMapper.java  [修改占位]
+│   │   │   │           │   │       ├── OrderPersistenceMapper.java  [新增]
+│   │   │   │           │   │       └── OrderRecord.java  [新增]
+│   │   │   │           │   └── port
+│   │   │   │           │       └── OrderRepository.java  [修改占位]
+│   │   │   │           ├── shared
+│   │   │   │           │   ├── api
+│   │   │   │           │   │   ├── ApiErrorResponse.java  [修改占位]
+│   │   │   │           │   │   └── ApiExceptionHandler.java  [修改占位]
+│   │   │   │           │   └── domain
+│   │   │   │           │       ├── BusinessException.java  [新增]
+│   │   │   │           │       └── PageSlice.java  [新增]
+│   │   │   │           ├── worker
+│   │   │   │           │   ├── application
+│   │   │   │           │   │   ├── ExecutionSupervisor.java  [新增；架构决策已确认]
+│   │   │   │           │   │   ├── ExportCommandHandler.java  [修改占位；架构决策已确认]
+│   │   │   │           │   │   ├── ExportDataCollectionService.java  [新增；架构决策已确认]
+│   │   │   │           │   │   ├── OrphanCleanupService.java  [新增；架构决策已确认]
+│   │   │   │           │   │   └── TaskExecutionService.java  [新增；架构决策已确认]
+│   │   │   │           │   ├── domain
+│   │   │   │           │   │   ├── CheckpointModels.java  [新增]
+│   │   │   │           │   │   └── ExecutionModels.java  [新增；架构决策已确认]
+│   │   │   │           │   ├── infrastructure
+│   │   │   │           │   │   ├── excel
+│   │   │   │           │   │   │   ├── ExcelFileValidator.java  [新增]
+│   │   │   │           │   │   │   ├── ExcelRowProjector.java  [新增]
+│   │   │   │           │   │   │   ├── ExcelWorkbookAssembler.java  [新增]
+│   │   │   │           │   │   │   └── PoiExportFileGenerator.java  [修改占位；真实SXSSF生成]
+│   │   │   │           │   │   ├── file
+│   │   │   │           │   │   │   └── DataBlockCodec.java  [新增]
+│   │   │   │           │   │   ├── messaging
+│   │   │   │           │   │   │   └── RabbitMqExportCommandListener.java  [修改占位；架构决策已确认]
+│   │   │   │           │   │   └── persistence
+│   │   │   │           │   │       ├── CheckpointMapper.java  [新增；架构决策已确认]
+│   │   │   │           │   │       ├── CheckpointRecord.java  [新增]
+│   │   │   │           │   │       ├── ExecutionLeaseRecord.java  [新增；架构决策已确认]
+│   │   │   │           │   │       ├── MyBatisCheckpointRepository.java  [新增；架构决策已确认]
+│   │   │   │           │   │       ├── MyBatisTaskExecutionRepository.java  [新增；架构决策已确认]
+│   │   │   │           │   │       └── TaskExecutionMapper.java  [新增；架构决策已确认]
+│   │   │   │           │   └── port
+│   │   │   │           │       ├── CheckpointRepository.java  [新增；架构决策已确认]
+│   │   │   │           │       ├── ExecutionGuard.java  [新增]
+│   │   │   │           │       ├── ExportFileGenerator.java  [修改占位]
+│   │   │   │           │       └── TaskExecutionRepository.java  [新增；架构决策已确认]
+│   │   │   │           └── ExportFlowApplication.java  [修改占位]
+│   │   │   └── resources
+│   │   │       ├── db
+│   │   │       │   └── migration
+│   │   │       │       ├── V2__create_export_tasks_and_outbox.sql  [新增]
+│   │   │       │       ├── V3__create_task_execution.sql  [新增；架构决策已确认]
+│   │   │       │       └── V4__create_export_checkpoints_and_artifacts.sql  [新增；架构决策已确认]
+│   │   │       ├── mappers
+│   │   │       │   ├── ArtifactMapper.xml  [新增；架构决策已确认]
+│   │   │       │   ├── CheckpointMapper.xml  [新增；架构决策已确认]
+│   │   │       │   ├── CommandOutboxMapper.xml  [新增]
+│   │   │       │   ├── ExportTaskMapper.xml  [新增]
+│   │   │       │   ├── OrderMapper.xml  [新增]
+│   │   │       │   └── TaskExecutionMapper.xml  [新增；架构决策已确认]
+│   │   │       └── application.yml  [修改占位]
+│   │   └── test
+│   │       └── java
+│   │           └── com
+│   │               └── exportflow
+│   │                   ├── dispatch
+│   │                   │   ├── BrokerPolicyBoundaryTest.java  [新增（仅测试阶段）]
+│   │                   │   ├── DispatchSchedulingTest.java  [新增（仅测试阶段）]
+│   │                   │   ├── OutboxDeadlineRaceTest.java  [新增（仅测试阶段）]
+│   │                   │   ├── OutboxDispatchMySqlTest.java  [新增（仅测试阶段）]
+│   │                   │   ├── OutboxFailureWindowsTest.java  [新增（仅测试阶段）]
+│   │                   │   ├── OutboxTimeoutMySqlTest.java  [新增（仅测试阶段）]
+│   │                   │   ├── PublisherCorrelationTest.java  [新增（仅测试阶段）]
+│   │                   │   └── RabbitMqPublisherTest.java  [新增（仅测试阶段）]
+│   │                   ├── exporttasks
+│   │                   │   ├── CreateTransactionMySqlTest.java  [新增（仅测试阶段）]
+│   │                   │   ├── CreationAsyncBoundaryTest.java  [新增（仅测试阶段）]
+│   │                   │   ├── CreationInputBoundaryTest.java  [新增（仅测试阶段）]
+│   │                   │   ├── CreationResultMySqlTest.java  [新增（仅测试阶段）]
+│   │                   │   ├── ExportCreationContractTest.java  [新增（仅测试阶段）]
+│   │                   │   └── IdempotencyMySqlTest.java  [新增（仅测试阶段）]
+│   │                   ├── orders
+│   │                   │   ├── ApiPerformanceTest.java  [新增（仅测试阶段）]
+│   │                   │   ├── OrderApiContractTest.java  [新增（仅测试阶段）]
+│   │                   │   ├── OrderQueryBoundaryTest.java  [新增（仅测试阶段）]
+│   │                   │   └── OrderQueryMySqlTest.java  [新增（仅测试阶段）]
+│   │                   ├── worker
+│   │                   │   ├── ArtifactCleanupConcurrencyTest.java  [新增（仅测试阶段）]
+│   │                   │   ├── ArtifactCleanupRaceTest.java  [新增（规格获批后测试阶段）]
+│   │                   │   ├── BadCommandIsolationTest.java  [新增（仅测试阶段）]
+│   │                   │   ├── CheckpointRecoveryTest.java  [新增（规格获批后测试阶段）]
+│   │                   │   ├── DownloadBoundaryTest.java  [新增（仅测试阶段）]
+│   │                   │   ├── DownloadExportFileTest.java  [新增（规格获批后测试阶段）]
+│   │                   │   ├── DurabilityGuardTest.java  [新增（仅测试阶段）]
+│   │                   │   ├── ExcelBoundaryTest.java  [新增（仅测试阶段）]
+│   │                   │   ├── ExcelContentTest.java  [新增（规格获批后测试阶段）]
+│   │                   │   ├── ExcelPerformanceTest.java  [新增（仅测试阶段）]
+│   │                   │   ├── ExcelResourceTest.java  [新增（规格获批后测试阶段）]
+│   │                   │   ├── ExcelValidationBoundaryTest.java  [新增（仅测试阶段）]
+│   │                   │   ├── ExecutionLeaseMySqlTest.java  [新增（仅测试阶段）]
+│   │                   │   ├── ExecutionSupervisionTest.java  [新增（仅测试阶段）]
+│   │                   │   ├── ExportCommandHandlerTest.java  [新增（仅测试阶段）]
+│   │                   │   ├── ExportProgressMySqlTest.java  [新增（规格获批后测试阶段）]
+│   │                   │   ├── GeneratorBoundaryTest.java  [新增（仅测试阶段）]
+│   │                   │   ├── RecoveryFailureWindowsTest.java  [新增（仅测试阶段）]
+│   │                   │   └── WorkerFailureWindowsTest.java  [新增（仅测试阶段）]
+│   │                   ├── RuntimeCapabilityTest.java  [新增（仅测试阶段）]
+│   │                   ├── RuntimeConfigurationTest.java  [新增（仅测试阶段）]
+│   │                   └── RuntimeSecurityTest.java  [新增（仅测试阶段）]
 │   ├── mvnw  [新增]
 │   ├── mvnw.cmd  [新增]
 │   ├── pom.xml  [修改占位]
-│   ├── README.md  [修改（实施后）]
-│   ├── tools/
-│   │   └── SeedOrders.java  [新增（生产实施阶段）]
-│   └── src
-│       ├── main
-│       │   ├── java
-│       │   │   └── com
-│       │   │       └── exportflow
-│       │   │           ├── config
-│       │   │           │   ├── RuntimeConfiguration.java  [修改占位]
-│       │   │           │   └── RuntimeProperties.java  [新增]
-│       │   │           ├── dispatch
-│       │   │           │   ├── application
-│       │   │           │   │   ├── DispatchScheduler.java  [新增]
-│       │   │           │   │   ├── OutboxDispatchService.java  [修改占位]
-│       │   │           │   │   └── OutboxTimeoutService.java  [新增]
-│       │   │           │   ├── domain
-│       │   │           │   │   ├── CommandOutbox.java  [修改占位]
-│       │   │           │   │   └── DispatchModels.java  [新增]
-│       │   │           │   ├── infrastructure
-│       │   │           │   │   ├── messaging
-│       │   │           │   │   │   ├── ExportCommandCodec.java  [新增]
-│       │   │           │   │   │   └── RabbitMqExportCommandPublisher.java  [修改占位]
-│       │   │           │   │   └── persistence
-│       │   │           │   │       ├── CommandOutboxMapper.java  [修改占位]
-│       │   │           │   │       ├── CommandOutboxRecord.java  [新增]
-│       │   │           │   │       ├── MyBatisCommandOutboxRepository.java  [修改占位]
-│       │   │           │   │       └── OutboxPersistenceMapper.java  [新增]
-│       │   │           │   └── port
-│       │   │           │       ├── CommandOutboxRepository.java  [修改占位]
-│       │   │           │       └── ExportCommandPublisher.java  [修改占位]
-│       │   │           ├── ExportFlowApplication.java  [修改占位]
-│       │   │           ├── exporttasks
-│       │   │           │   ├── api
-│       │   │           │   │   ├── ExportTaskApiMapper.java  [新增]
-│       │   │           │   │   ├── ExportTaskApiModels.java  [新增]
-│       │   │           │   │   └── ExportTaskController.java  [修改占位]
-│       │   │           │   ├── application
-│       │   │           │   │   ├── CreateExportTaskService.java  [修改占位]
-│       │   │           │   │   ├── CreateExportTransaction.java  [新增]
-│       │   │           │   │   ├── DownloadExportFileService.java  [修改占位；本期实现]
-│       │   │           │   │   ├── ExportRangeService.java  [新增]
-│       │   │           │   │   ├── ExportRequestCanonicalizer.java  [新增]
-│       │   │           │   │   └── ExportTaskQueryService.java  [后续；本次保留占位]
-│       │   │           │   ├── domain
-│       │   │           │   │   ├── ExportField.java  [新增]
-│       │   │           │   │   ├── ExportFileModels.java  [新增]
-│       │   │           │   │   ├── ExportScope.java  [新增]
-│       │   │           │   │   ├── ExportTask.java  [修改占位]
-│       │   │           │   │   └── ExportTaskModels.java  [新增]
-│       │   │           │   ├── infrastructure
-│       │   │           │   │   ├── cache
-│       │   │           │   │   │   └── RedisExportProgressCache.java  [后续；本次保留占位]
-│       │   │           │   │   ├── file
-│       │   │           │   │   │   └── LocalExportFileStorage.java  [修改占位；本期实现]
-│       │   │           │   │   └── persistence
-│       │   │           │   │       ├── ArtifactMapper.java  [新增；架构决策已确认]
-│       │   │           │   │       ├── ArtifactRecord.java  [新增]
-│       │   │           │   │       ├── ExportTaskMapper.java  [修改占位]
-│       │   │           │   │       ├── ExportTaskPersistenceMapper.java  [新增]
-│       │   │           │   │       ├── ExportTaskRecord.java  [新增]
-│       │   │           │   │       ├── MyBatisArtifactRepository.java  [新增；架构决策已确认]
-│       │   │           │   │       ├── MyBatisExportTaskRepository.java  [修改占位]
-│       │   │           │   │       └── MyBatisIdempotencyRepository.java  [新增]
-│       │   │           │   └── port
-│       │   │           │       ├── ArtifactRepository.java  [新增；架构决策已确认]
-│       │   │           │       ├── ExportFileStorage.java  [修改占位；本期实现]
-│       │   │           │       ├── ExportProgressCache.java  [后续；本次保留占位]
-│       │   │           │       ├── ExportTaskRepository.java  [修改占位]
-│       │   │           │       └── IdempotencyRepository.java  [新增]
-│       │   │           ├── orders
-│       │   │           │   ├── api
-│       │   │           │   │   ├── OrderApiMapper.java  [新增]
-│       │   │           │   │   ├── OrderApiModels.java  [新增]
-│       │   │           │   │   └── OrderController.java  [修改占位]
-│       │   │           │   ├── application
-│       │   │           │   │   └── OrderQueryService.java  [修改占位]
-│       │   │           │   ├── domain
-│       │   │           │   │   ├── Order.java  [修改占位]
-│       │   │           │   │   └── OrderQuery.java  [新增]
-│       │   │           │   ├── infrastructure
-│       │   │           │   │   └── persistence
-│       │   │           │   │       ├── MyBatisOrderRepository.java  [修改占位]
-│       │   │           │   │       ├── OrderMapper.java  [修改占位]
-│       │   │           │   │       ├── OrderPersistenceMapper.java  [新增]
-│       │   │           │   │       └── OrderRecord.java  [新增]
-│       │   │           │   └── port
-│       │   │           │       └── OrderRepository.java  [修改占位]
-│       │   │           ├── shared
-│       │   │           │   ├── api
-│       │   │           │   │   ├── ApiErrorResponse.java  [修改占位]
-│       │   │           │   │   └── ApiExceptionHandler.java  [修改占位]
-│       │   │           │   └── domain
-│       │   │           │       ├── BusinessException.java  [新增]
-│       │   │           │       └── PageSlice.java  [新增]
-│       │   │           └── worker
-│       │   │               ├── application
-│       │   │               │   ├── ExecutionSupervisor.java  [新增；架构决策已确认]
-│       │   │               │   ├── ExportCommandHandler.java  [修改占位；架构决策已确认]
-│       │   │               │   ├── ExportDataCollectionService.java  [新增；架构决策已确认]
-│       │   │               │   ├── OrphanCleanupService.java  [新增；架构决策已确认]
-│       │   │               │   └── TaskExecutionService.java  [新增；架构决策已确认]
-│       │   │               ├── domain
-│       │   │               │   ├── CheckpointModels.java  [新增]
-│       │   │               │   └── ExecutionModels.java  [新增；架构决策已确认]
-│       │   │               ├── infrastructure
-│       │   │               │   ├── excel
-│       │   │               │   │   ├── ExcelFileValidator.java  [新增]
-│       │   │               │   │   ├── ExcelRowProjector.java  [新增]
-│       │   │               │   │   ├── ExcelWorkbookAssembler.java  [新增]
-│       │   │               │   │   └── PoiExportFileGenerator.java  [修改占位；真实SXSSF生成]
-│       │   │               │   ├── file
-│       │   │               │   │   └── DataBlockCodec.java  [新增]
-│       │   │               │   ├── messaging
-│       │   │               │   │   └── RabbitMqExportCommandListener.java  [修改占位；架构决策已确认]
-│       │   │               │   └── persistence
-│       │   │               │       ├── CheckpointMapper.java  [新增；架构决策已确认]
-│       │   │               │       ├── CheckpointRecord.java  [新增]
-│       │   │               │       ├── ExecutionLeaseRecord.java  [新增；架构决策已确认]
-│       │   │               │       ├── MyBatisCheckpointRepository.java  [新增；架构决策已确认]
-│       │   │               │       ├── MyBatisTaskExecutionRepository.java  [新增；架构决策已确认]
-│       │   │               │       └── TaskExecutionMapper.java  [新增；架构决策已确认]
-│       │   │               └── port
-│       │   │                   ├── CheckpointRepository.java  [新增；架构决策已确认]
-│       │   │                   ├── ExecutionGuard.java  [新增]
-│       │   │                   ├── ExportFileGenerator.java  [修改占位]
-│       │   │                   └── TaskExecutionRepository.java  [新增；架构决策已确认]
-│       │   └── resources
-│       │       ├── application.yml  [修改占位]
-│       │       ├── db
-│       │       │   └── migration
-│       │       │       ├── README.md  [修改]
-│       │       │       ├── V1__create_orders.sql  [新增]
-│       │       │       ├── V2__create_export_tasks_and_outbox.sql  [新增]
-│       │       │       ├── V3__create_task_execution.sql  [新增；架构决策已确认]
-│       │       │       └── V4__create_export_checkpoints_and_artifacts.sql  [新增；架构决策已确认]
-│       │       └── mappers
-│       │           ├── ArtifactMapper.xml  [新增；架构决策已确认]
-│       │           ├── CheckpointMapper.xml  [新增；架构决策已确认]
-│       │           ├── CommandOutboxMapper.xml  [新增]
-│       │           ├── ExportTaskMapper.xml  [新增]
-│       │           ├── OrderMapper.xml  [新增]
-│       │           └── TaskExecutionMapper.xml  [新增；架构决策已确认]
-│       └── test
-│           └── java
-│               └── com
-│                   └── exportflow
-│                       ├── dispatch
-│                       │   ├── OutboxDispatchMySqlTest.java  [新增（仅测试阶段）]
-│                       │   ├── OutboxTimeoutMySqlTest.java  [新增（仅测试阶段）]
-│                       │   └── RabbitMqPublisherTest.java  [新增（仅测试阶段）]
-│                       ├── exporttasks
-│                       │   ├── CreateTransactionMySqlTest.java  [新增（仅测试阶段）]
-│                       │   ├── ExportCreationContractTest.java  [新增（仅测试阶段）]
-│                       │   ├── IdempotencyMySqlTest.java  [新增（仅测试阶段）]
-│                       │   └── CreationResultMySqlTest.java  [新增（仅测试阶段）]
-│                       ├── orders
-│                       │   ├── OrderApiContractTest.java  [新增（仅测试阶段）]
-│                       │   └── OrderQueryMySqlTest.java  [新增（仅测试阶段）]
-│                       ├── RuntimeConfigurationTest.java  [新增（仅测试阶段）]
-│                       └── worker
-│                           ├── ArtifactCleanupRaceTest.java  [新增（规格获批后测试阶段）]
-│                           ├── CheckpointRecoveryTest.java  [新增（规格获批后测试阶段）]
-│                           ├── DownloadExportFileTest.java  [新增（规格获批后测试阶段）]
-│                           ├── ExcelContentTest.java  [新增（规格获批后测试阶段）]
-│                           ├── ExcelResourceTest.java  [新增（规格获批后测试阶段）]
-│                           ├── ExecutionLeaseMySqlTest.java  [新增（仅测试阶段）]
-│                           ├── ExportCommandHandlerTest.java  [新增（仅测试阶段）]
-│                           ├── ExportProgressMySqlTest.java  [新增（规格获批后测试阶段）]
-│                           └── GeneratorBoundaryTest.java  [新增（仅测试阶段）]
-├── DATA-FLOW.md  [修改（实施后）]
+│   └── README.md  [修改（实施后）]
 ├── docs
 │   └── validation
 │       └── 002-order-management
+│           ├── api-implementation.md  [新增（实施后）]
+│           ├── browser-checklist.md  [新增（仅测试阶段）]
+│           ├── coverage-audit.md  [新增（仅测试阶段）]
 │           ├── coverage-gaps.md  [新增（执行后）]
 │           ├── environment.md  [新增（执行后）]
 │           ├── excel-content.md  [新增（实际执行后）]
@@ -375,11 +395,10 @@ specs/002-order-management/
 │           ├── green-results.md  [新增（执行后）]
 │           ├── orders-1280x720.png  [新增（执行后）]
 │           ├── performance.json  [新增（执行后）]
-│           └── red-results.md  [新增（执行后）]
+│           ├── red-results.md  [新增（执行后）]
+│           ├── scenario-completion.md  [新增（仅测试阶段）]
+│           └── test-summary.json  [新增（测试执行摘要）]
 ├── frontend
-│   ├── package.json  [修改]
-│   ├── pnpm-lock.yaml  [修改]
-│   ├── README.md  [修改（实施后）]
 │   ├── src
 │   │   ├── app
 │   │   │   ├── app-providers.tsx  [修改]
@@ -388,10 +407,6 @@ specs/002-order-management/
 │   │   │   └── router.tsx  [复用]
 │   │   ├── features
 │   │   │   ├── export-tasks
-│   │   │   │   ├── components
-│   │   │   │   │   └── export-task-table.tsx  [后续；本次保留占位]
-│   │   │   │   ├── hooks
-│   │   │   │   │   └── use-export-tasks.ts  [后续；本次保留占位]
 │   │   │   │   ├── models
 │   │   │   │   │   └── export-task-schema.ts  [新增]
 │   │   │   │   ├── pages
@@ -401,6 +416,9 @@ specs/002-order-management/
 │   │   │   └── orders
 │   │   │       ├── __tests__
 │   │   │       │   ├── navigation.test.tsx  [新增（仅测试阶段）]
+│   │   │       │   ├── order-api.test.ts  [新增（测试阶段协议与取消）]
+│   │   │       │   ├── order-boundaries.test.tsx  [新增（仅测试阶段）]
+│   │   │       │   ├── order-export-state.test.tsx  [新增（测试阶段辅助拆分）]
 │   │   │       │   ├── order-export.test.tsx  [新增（仅测试阶段）]
 │   │   │       │   ├── order-management.test.tsx  [新增（仅测试阶段）]
 │   │   │       │   ├── order-query.test.ts  [新增（仅测试阶段）]
@@ -446,19 +464,43 @@ specs/002-order-management/
 │   │   │       └── page-result.ts  [修改占位]
 │   │   └── test
 │   │       ├── handlers.ts  [新增（仅测试阶段）]
+│   │       ├── runtime.test.ts  [新增（测试工具验证）]
 │   │       └── setup.ts  [新增（仅测试阶段）]
+│   ├── package.json  [修改]
+│   ├── pnpm-lock.yaml  [修改]
+│   ├── README.md  [修改（实施后）]
 │   ├── tsconfig.app.json  [修改]
 │   ├── vite.config.ts  [修改]
 │   └── vitest.config.ts  [新增]
-├── README.md  [修改]
 ├── scripts
-│   ├── check-order-performance.ps1  [新增]
-│   └── seed-orders.ps1  [新增]
-└── tests
-    ├── backend
-    │   └── pom.xml  [新增（仅测试准备）]
-    └── fixtures
-        ├── export-requests.json  [新增（仅测试）]
-        ├── orders.sql  [新增（仅测试）]
-        └── outbox.sql  [新增（仅测试）]
+│   └── check-order-performance.ps1  [新增]
+├── tests
+│   ├── backend
+│   │   ├── src
+│   │   │   └── test
+│   │   │       └── java
+│   │   │           └── com
+│   │   │               └── exportflow
+│   │   │                   └── testing
+│   │   │                       ├── BoundaryFixture.java  [新增（仅测试阶段）]
+│   │   │                       ├── BoundaryProbe.java  [新增（仅测试阶段）]
+│   │   │                       ├── CommitFaults.java  [新增（仅测试故障注入）]
+│   │   │                       ├── SharedServices.java  [测试共享服务隔离]
+│   │   │                       ├── ProductionBackendFixture.java  [新增（真实生产边界测试装配）]
+│   │   │                       ├── TestEnvironmentTest.java  [新增（仅测试工具验证）]
+│   │   │                       ├── WorkerFaultBarrierMain.java  [新增（仅测试子进程屏障）]
+│   │   │                       └── WorkerSampledMain.java  [新增（仅测试阶段）]
+│   │   └── pom.xml  [新增（仅测试准备）]
+│   └── README.md  [新增（测试设施说明）]
+├── AGENTS.md  [修改（实施后，仅地图）]
+├── DATA-FLOW.md  [修改（实施后）]
+└── README.md  [修改]
 ```
+
+### 2026-10-11共享服务调整
+
+负责人要求直接复用project-export-flow。夹具不创建容器；逐用例schema/vhost/测试账号与文件目录隔离，AMQP TCP桥只切断测试socket。运行校验允许严格32位hex测试名称，队列级ACK超时不改共享broker配置。函数与文件职责见[实施补充](implementation-notes.md#共享服务夹具)；证据与环境差异见[共享服务验证](../../docs/validation/002-order-management/shared-services.md)。
+
+基础设施部署和业务数据职责分开：本项目不维护Compose、MySQL/Redis/RabbitMQ服务初始化或共享账号配置。V1至V4是本应用实际调用的业务表迁移，数据模型是这些表与协议的设计依据；运行时连接外部提供的本项目schema。2026-10-12按负责人明确要求，独立造数工具和合成订单夹具已删除；订单视图直接读取已提供的exportflow.orders，详见[复用数据](provided-data.md)。删除迁移目录过时的占位README；现有模块README及quickstart已承载迁移和启动说明。对示例业务表的核对见[共享服务记录](../../docs/validation/002-order-management/shared-services.md#业务数据边界核对)。
+
+数据来源职责、映射、迁移及回归修订见[provided-data.md](provided-data.md)。该修订替代本规格原合成初始化方案；仅使用已有110000订单，200000/200001数据不足按负责人明确要求记录缺口，不计业务失败。

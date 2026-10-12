@@ -2,6 +2,9 @@
 **/node_modules/
 **/dist/
 **/target/
+**/test-results/
+artifacts/
+/export-data/
 *.tsbuildinfo
 *.log
 !docs/validation/**/commands.log

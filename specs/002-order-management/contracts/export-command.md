@@ -1,6 +1,6 @@
 # RabbitMQ 命令与投递契约（草稿 v1）
 
-关联 [模型](../data-model.md)、[流程计划](../plan.md)、[Worker](worker-boundary.md)。已接受原则依据 [ADR-0004](../../../docs/adr/0004-rabbitmq-task-queue.md)、[ADR-0006](../../../docs/adr/0006-broker-owned-pending-delivery.md)、[ADR-0007](../../../docs/adr/0007-outbox-dispatch-retry.md)。以下字段/拓扑/参数已按负责人本次要求定稿；整体功能规格仍待单独审批。
+关联 [模型](../data-model.md)、[流程计划](../plan.md)、[Worker](worker-boundary.md)。已接受原则依据 [ADR-0004](../../../docs/adr/0004-rabbitmq-task-queue.md)、[ADR-0006](../../../docs/adr/0006-broker-owned-pending-delivery.md)、[ADR-0007](../../../docs/adr/0007-outbox-dispatch-retry.md)。以下字段/拓扑/参数已按负责人本次要求定稿；0.4整体功能规格已批准进入测试先行，测试阶段仍待单独审批。
 
 ## 消息
 

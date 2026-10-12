@@ -1,6 +1,6 @@
 # 依赖精确版本与调查记录
 
-**日期**：2026-10-07。**状态**：按负责人“按你的建议来”定稿；未安装依赖、未更新生产pom/package.json/锁文件，未执行构建兼容验证。关联[决策](decision-record.md)、[计划](plan.md)、[研究](research.md)、[ADR-0009](../../docs/adr/0009-engineering-runtime-and-progress-notification.md)。后续按审批阶段添加相应测试或生产依赖，不能一次性提前初始化正式工程。
+**日期**：2026-10-07定稿，2026-10-11实施复核。**状态**：测试与开发均已获授权，前端锁定依赖和正式后端POM/Wrapper已落实；前端门禁和后端质量专项已执行，完整回归/性能仍在进行。调查时未安装的历史事实保留在[环境](../../docs/validation/002-order-management/environment.md)，当前以[实施进度](../../docs/validation/002-order-management/implementation-progress.md)为准。关联[决策](decision-record.md)、[计划](plan.md)、[研究](research.md)、[ADR-0009](../../docs/adr/0009-engineering-runtime-and-progress-notification.md)。
 
 ## 前端
 
@@ -26,7 +26,7 @@
 
 ## 后端与工具
 
-工程坐标com.exportflow:export-flow-backend:0.1.0-SNAPSHOT，Java21；使用Spring Boot parent/BOM3.5.16，Maven3.9.16。Boot管理组件不自行覆盖单个传递版本；本次直接读取了[Boot BOM](https://repo.maven.apache.org/maven2/org/springframework/boot/spring-boot-dependencies/3.5.16/spring-boot-dependencies-3.5.16.pom)，以下值来自该POM或独立坐标。
+工程坐标com.exportflow:export-flow:0.2.0-SNAPSHOT，Java21；使用Spring Boot parent/BOM3.5.16，Maven3.9.16，与[正式POM](../../backend/pom.xml)及[模块启动说明](../../backend/README.md)一致。Boot管理组件不自行覆盖单个传递版本；本次直接读取了[Boot BOM](https://repo.maven.apache.org/maven2/org/springframework/boot/spring-boot-dependencies/3.5.16/spring-boot-dependencies-3.5.16.pom)，以下值来自该POM或独立坐标。
 
 | 坐标／组件 | 定稿版本 | 来源与说明 |
 | --- | --- | --- |
@@ -38,11 +38,13 @@
 | Jackson BOM | 2.21.4 | Boot管理JSON；无第二JSON框架 |
 | org.apache.poi:poi-ooxml | 5.5.1 | [元数据](https://repo.maven.apache.org/maven2/org/apache/poi/poi-ooxml/maven-metadata.xml)，SXSSF与事件读取，不额外显式引入重复POI版本 |
 | JUnit Jupiter / AssertJ | 5.12.2 / 3.27.7 | Boot测试依赖管理 |
-| org.testcontainers:testcontainers-bom | 1.21.4 | Boot管理；junit-jupiter/mysql/rabbitmq同版本，Redis用GenericContainer |
+| Testcontainers（历史测试准备） | 原1.21.4 | 2026-10-11按负责人要求复用既有服务，正式及harness POM已删除三个未使用直接依赖；Boot BOM保留的版本管理不表示运行时使用 |
 | Maven Surefire / Failsafe | 3.5.6 / 3.5.6 | Boot管理；单元test，集成verify |
+| org.codehaus.mojo:build-helper-maven-plugin | 3.6.1 | 正式工程汇入tests/backend测试辅助源；harness用于测试准备，未注册造数工具源 |
 | com.diffplug.spotless:spotless-maven-plugin | 3.10.3 | [元数据](https://repo.maven.apache.org/maven2/com/diffplug/spotless/spotless-maven-plugin/maven-metadata.xml)，格式器显式锁定下行版本 |
 | com.google.googlejavaformat:google-java-format | 1.28.0 | [POM](https://repo.maven.apache.org/maven2/com/google/googlejavaformat/google-java-format/1.28.0/google-java-format-1.28.0.pom)，适配Java21的固定维护版本，运行兼容在获批工具验证时检查 |
 | org.apache.maven.plugins:maven-checkstyle-plugin | 3.6.0 | [元数据](https://repo.maven.apache.org/maven2/org/apache/maven/plugins/maven-checkstyle-plugin/maven-metadata.xml)，内置google_checks.xml |
+| com.puppycrawl.tools:checkstyle | 10.26.1 | 显式插件依赖，原默认9.3处理本期Java记录语法内部报错；升级后相同google_checks.xml通过，见[review](../../docs/validation/002-order-management/code-review.md) |
 | com.github.spotbugs:spotbugs-maven-plugin | 4.10.4.1 | [元数据](https://repo.maven.apache.org/maven2/com/github/spotbugs/spotbugs-maven-plugin/maven-metadata.xml)，高置信高优先级检查 |
 | org.jacoco:jacoco-maven-plugin | 0.8.15 | [元数据](https://repo.maven.apache.org/maven2/org/jacoco/jacoco-maven-plugin/maven-metadata.xml)，报告必需，无百分比阈值 |
 | Maven | 3.9.16 | [元数据](https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/maven-metadata.xml)，选择3.9维护分支，不选3.10主线 |
@@ -54,4 +56,4 @@
 
 ## 中间件
 
-复用mysql:8.4、rabbitmq:3.13-management-alpine、redis:7.4-alpine，不升级共享容器。测试用相同版本线，环境准备时解析并记录实际patch与镜像digest，随后同一验证批次使用固定digest；本期没有创建或拉取镜像。标签并非不可变身份，未运行阶段没有真实digest证据，不能伪造。
+复用mysql:8.4、rabbitmq:3.13-management-alpine、redis:7.4-alpine，不升级共享容器。2026-10-11测试准备已解析并固定实际MySQL/RabbitMQ镜像digest，创建独立测试容器完成工具检查，见[环境记录](../../docs/validation/002-order-management/environment.md)。标签并非不可变身份；本期未使用Redis测试容器，不能把共享容器healthy当业务证据。

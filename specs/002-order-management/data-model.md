@@ -1,6 +1,6 @@
 # 数据模型与类型设计
 
-**状态**：草稿；以下是设计，不是已生成迁移或代码。关联 [plan](plan.md)、[函数设计](function-design.md)、[HTTP](contracts/http-api.md)、[消息](contracts/export-command.md)、[任务](tasks.md)。本文件不复制验收定义。
+**状态**：规格0.4已获批并进入实施；业务表已落实为[版本化迁移](../../backend/src/main/resources/db/migration)，验证状态见[任务](tasks.md)。关联 [plan](plan.md)、[函数设计](function-design.md)、[HTTP](contracts/http-api.md)、[消息](contracts/export-command.md)。本文件描述应用的业务记录与协议类型，不定义MySQL、RabbitMQ或Redis服务的部署，也不复制验收定义。
 
 ## 通用规则
 
@@ -18,7 +18,7 @@ ID 在 JSON 中为字符串，Java 内部订单 ID 为正 Long（协议十进制
 | OrderViewModel | key: OrderId；其余展示字段为中文／格式化字符串，原始 ID 保留；金额不经浮点计算 |
 | PageResult<T> | items: T[]、page、pageSize、total: nonnegative integer（Java Long，JSON 在安全整数范围内，超过拒绝而不截断） |
 | ExportField | 有序允许值 orderNo、customerName、customerPhone、status、channel、amount、currency、region、createdAt；1–9 项且不重复；默认列表按页面业务列顺序 |
-| ExportScope | SELECTED: orderIds: OrderId[1..200000]，忽略排序去重后校验每个 ID 存在；FILTERED: filter: OrderFilter，不含分页／排序／前端计数；两种范围互斥 |
+| ExportScope | SELECTED: orderIds: OrderId[1..200000]，忽略排序去重后校验每个 ID 存在；FILTERED: filter: OrderFilter，可选excludedOrderIds，不含分页／排序／前端计数；两种范围互斥，排除约束见[003契约](../003-select-all-filtered/contracts/export-scope.md) |
 | CreateExportRequest | scope: ExportScope；fields: ExportField[]；额外字段拒绝；服务端不能接受 total/status/taskId |
 | FrozenExportSubmission | request: 深度不可变 CreateExportRequest；idempotencyKey；localState=`SUBMITTING`/`UNKNOWN`/`CONFIRMED`/`REJECTED`；result?: CreateExportResponse；仅页面内存；结果不明不能换键 |
 | CreateExportResponse | taskId: UUID字符串、taskNo: string、scopeType: SELECTED/FILTERED、totalCount: 1至200000的安全整数、fields: 有序ExportField[]、createdAt: UtcInstant；仅已确认提交的创建结果，201/200均返回此结构，不含执行进度、状态或文件元数据 |
@@ -29,7 +29,7 @@ ID 在 JSON 中为字符串，Java 内部订单 ID 为正 Long（协议十进制
 
 - OrderFilterFormValues：OrderFilter 的业务输入，其中 createdFromLocal/createdToLocal 为 `yyyy-MM-dd HH:mm:ss` 字符串，金额原始字符串；提交验证后转 UTC。OrderFilterFormProps：values、isLoading、onQuery(values):void、onReset():void。
 - OrderTableProps：rows: OrderViewModel[]、isLoading、selectedIds: ReadonlySet<OrderId>、sortDirection、onToggle(id,isSelected):void、onSort(direction):void。
-- OrderSelectionState：ids: ReadonlySet<OrderId>；SelectionAction 为 TOGGLE(id,isSelected)、SELECT_PAGE(ids)、INVERT_PAGE(ids)、CLEAR；不会存整个订单数据。
+- OrderSelectionState：mode: INCLUDE/EXCLUDE、ids: ReadonlySet<OrderId>、notice?: string；SelectionAction包含原行动作及SELECT_ALL、INVERT_ALL、DESELECT_PAGE，完整语义见[003状态](../003-select-all-filtered/data-model.md)；不会存整个订单数据。
 - ExportDialogState：isOpen、scope?: ExportScope、fields: ExportField[]；ExportConfigDialogProps：state、isSubmitting、isUnknown、onFieldsChange(fields):void、onConfirm():void、onClose():void、onRetry():void。
 - OrdersState：query: OrderQuery、pageResult?: PageResult<OrderDto>、loadState=`loading`/`success`/`empty`/`error`、error?: ApiError；UseOrdersResult 增加 submitFilter(values)、reset()、changePage(page,pageSize)、changeSort(direction)、refresh()，返回 Promise<void> 或 void 依函数设计；不复制 TanStack Query 的服务端缓存。
 - UseOrderSelectionResult：ids、count、dispatch(action):void；UseOrderExportResult：dialog、submission?、open(scope):void、setFields(fields):void、close():void、confirm():Promise<void>、retryUnknown():Promise<void>。
@@ -43,21 +43,23 @@ ID 在 JSON 中为字符串，Java 内部订单 ID 为正 Long（协议十进制
 
 | 表／模型 | 主要字段、索引与生命周期 |
 | --- | --- |
-| orders / OrderRecord | id BIGINT PK；order_no UNIQUE（二进制精确比较）；姓名／手机号 VARCHAR；status、channel VARCHAR；amount DECIMAL(18,2)；currency CHAR(3)；region；created_at DATETIME(0)；(created_at,id)、(status,created_at,id)、(channel,created_at,id) 设计索引；keyword 前置通配可能全扫，须性能实测，不假定索引能解决 |
+| orders视图 / OrderRecord | 直接读取exportflow.orders；total_amount→amount、sales_channel→channel、shipping_province→region、COALESCE(order_status,status)→status；不在本项目创建订单表、索引或初始化数据；映射见[来源设计](provided-data.md) |
 | export_tasks / ExportTaskRecord | task_id CHAR(36) PK、task_no UNIQUE、scope_type、filter_json?、fields_json（保序）、total_count、processed_count（持久高水位）、status、version、created_at、finished_at?、error_code?、error_summary?、file_name?、file_size?、result_artifact_id?；(created_at,task_id) 索引；成功与所选产物同事务，任务和文件永久保留 |
-| export_task_orders | (task_id,order_id) 联合 PK，SELECTED 的去重固定 ID 集合；FK 到任务与订单；FILTERED 不插入该表；关联字段在任务持久模型内说明，不创建独立业务实体 |
+| export_task_orders | (task_id,order_id) 联合 PK，SELECTED 的去重固定 ID 集合；FK 到任务与订单；FILTERED无排除不插入，非空排除在该表保存取消ID；角色由scope_type区分，见[003状态](../003-select-all-filtered/data-model.md)；关联字段在任务持久模型内说明，不创建独立业务实体 |
 | export_idempotency / IdempotencyRecord | key_hash BINARY(32) PK，canonical_version、request_hash、task_id UNIQUE FK；不存可用于日志泄漏的原键，数据库唯一约束裁决；本期无过期删除 |
 | command_outbox / CommandOutboxRecord | event_id PK、task_id FK、type=`EXPORT_REQUESTED`、schema_version=1、status=`READY`/`LEASED`/`SENT`/`CLOSED`、accepted_at、dispatch_deadline、next_attempt_at、attempt_no、lease_owner?、lease_token?、lease_until?、sent_at?、closed_at?、close_reason?、last_error_code?；UNIQUE(task_id,type)；到期／调度索引；不删除未发送或关闭记录 |
 | dispatch_attempts / DispatchAttemptRecord | (event_id,attempt_no) PK、lease_token、started_at、crash_retry_at、finished_at?、outcome?、safe_error?；领取事务即插入，崩溃也有历史；保留期未决，先不自动清理 |
 | task_execution / ExecutionLeaseRecord | task_id PK FK、owner_id、fence BIGINT、lease_until、heartbeat_at、progress_version、attempt_started_at、attempt_deadline、recovery_count、next_recovery_at；获得接管权才扣预算，执行权和异常恢复子集已接受，实施仍受两次门禁 |
 
-任务与 Outbox、幂等记录、SELECTED 关联同事务持久化。使用FK RESTRICT，禁止级联清理永久记录。SQL CHECK 保护计数 0≤processed≤total≤200000，终态字段一致性；JSON 形状仍由应用校验。代码只读订单，初始化使用独立入口，运行用户只SELECT订单及读写任务相关表，禁止DDL/DROP/TRUNCATE；独立migrator做迁移、seed入口写合成订单，凭据外部提供，实际授权待执行验证。
+任务与 Outbox、幂等记录、SELECTED 关联同事务持久化。使用FK RESTRICT，禁止级联清理永久记录。SQL CHECK 保护计数 0≤processed≤total≤200000，终态字段一致性；JSON 形状仍由应用校验。代码和测试均只读负责人原始订单，运行用户只SELECT来源及读写本项目任务表；migrator只建本项目业务表及来源视图，原表只授予SELECT/REFERENCES，不写入或更改。凭据外部提供，验证见[来源方案](provided-data.md)。
 
 ## 规范化与范围冻结
 
 规范化版本 1：文本 trim，空值删除；keyword 统一小写（Locale.ROOT，匹配亦不区分大小写）；orderNo 保留大小写；时间转 UTC 秒；金额去无义前导零后固定两位；枚举使用正式值；SELECTED ID 去重按数值升序；fields 顺序保留；固定属性序列生成 UTF-8 后 SHA-256。FILTERED 不含 page/pageSize/sortDirection。所有规则须契约测试验证；变更摘要规则须新版本，不能用新摘要误判旧键。
 
-创建时用相同 OrderFilter 查询规则在事务内计数；SELECTED 去重数量与存在数量必须一致，否则整笔拒绝。FILTERED 保存条件即可固定集合的前提为初始化后订单只读；一旦允许订单写入必须另评审真正数据快照。字段映射本期由ExcelRowProjector实现，顺序、表头、原值、定点金额及香港时间遵循[Excel方案](excel-design.md)。
+003增量：无排除继续保留原canonical版本1字节与configuration-v1；非空排除去重排序，使用canonical版本2与configuration-v2，参与幂等及断点身份。关联表不迁移，消息仍只带taskId。设计、函数与测试见[增量计划](../003-select-all-filtered/plan.md)。
+
+创建时用相同 OrderFilter 查询规则在事务内计数；SELECTED 去重数量与存在数量必须一致，否则整笔拒绝。FILTERED保存条件及排除关联即可固定集合的前提为初始化后订单只读；一旦允许订单写入必须另评审真正数据快照。字段映射本期由ExcelRowProjector实现，顺序、表头、原值、定点金额及香港时间遵循[Excel方案](excel-design.md)。
 
 ## 状态与数据库裁决
 
@@ -120,7 +122,7 @@ SENT仍PENDING不自动失败、不补投；任务终态不可回退，数据库
 
 Path是JDK类型，只由文件端口resolve在受控根内安全定位后交给校验器，不来自HTTP输入、不放入响应或SQL记录。校验成功返回ValidatedWorkbook；明确损坏/配置不符与依赖暂不可读/失权以可分类异常交生成器，分别形成KNOWN_FAILURE与UNKNOWN，不能用boolean混淆。
 
-文件物理目录和POI资源策略见[Excel方案](excel-design.md#文件身份就绪登记及下载)。数据库持久记录与领域值单独定义，机械字段转换在适配器内；BlockRef和ArtifactProof不直接充当SQL返回类型。新增schema为设计，不在本次生成迁移。
+文件物理目录和POI资源策略见[Excel方案](excel-design.md#文件身份就绪登记及下载)。数据库持久记录与领域值单独定义，机械字段转换在适配器内；BlockRef和ArtifactProof不直接充当SQL返回类型。业务迁移只作用于外部配置的本项目schema，不创建数据库服务、schema或数据库用户，不修改示例项目的表。
 
 ## 定稿运行配置的类型与归属
 
@@ -130,7 +132,7 @@ Path是JDK类型，只由文件端口resolve在受控根内安全定位后交给
 | --- | --- | --- |
 | apiBindAddress / apiPort / frontendProxyTarget | String / int / URI | 本机地址、端口及代理目标，禁止启动时开放外网 |
 | datasourceUrl / datasourceCredentialRef / brokerCredentialRef | String / String / String | 连接及外部凭据引用，不输出密码；schema/vhost白名单 |
-| fileRoot / scratchRoot | Path / Path | 外部受控目录、同卷与reparse检查，不能来自HTTP路径 |
+| fileRoot / scratchRoot | Path / Path | 文件根默认为标准入口项目根的export-data，可通过外部绝对路径覆盖；运行目录整体Git忽略，同卷与reparse检查保持，不能来自HTTP路径 |
 | sourceBatchSize / sxssfRowWindow / streamBufferBytes | int / int / int | 正数及有界内存配置，SXSSF每块末刷行/缓冲 |
 | maxBlockLineBytes / maxBlockBytes / maxHttpBodyBytes / maxCommandBytes | long / long / long / int | 行、块、请求与命令字节预算，超限明确失败/拒绝 |
 | compressScratch / useSharedStrings / consumerEnabled | boolean / boolean / boolean | true / false / 演示角色true，启动须能力验证 |
@@ -141,4 +143,4 @@ Path是JDK类型，只由文件端口resolve在受控根内安全定位后交给
 
 frontendProxyTarget供Vite配置设计使用，实际后端不依赖前端地址推进任务；Maven/框架工具版本由[依赖版本表](dependency-versions.md)管理，无配置代码在本次生成。
 
-初始化工具SeedOrders.java在同一文件定义嵌套记录SeedOutcome(kind=CREATED/VERIFIED,count:int,seed:long,algorithmVersion:int=1)与OrderSeedRow(id:long,orderNo:String,customerName:String,phone:String,status:String,channel:String,amount:BigDecimal,currency:String,region:String,createdAt:Instant)。已有数据按固定算法逐行核对，不新增seed元数据表、不以同数量假定一致；工具权限仅限获准的export_flow或测试schema，应用启动不自动调用。
+2026-10-12删除本项目合成订单初始化工具；数据来源、只读映射及不足规模的记录规则见[复用数据](provided-data.md)。

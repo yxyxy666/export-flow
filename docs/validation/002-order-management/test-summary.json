@@ -1,0 +1,435 @@
+{
+  "evidenceVersion": "0.4-test-03",
+  "date": "2026-10-11",
+  "timezone": "Asia/Hong_Kong",
+  "specVersion": "0.4",
+  "specificationApproval": "approved",
+  "productionApproval": "not-approved",
+  "testStageGate": "not-passed",
+  "scenarioAuthoring": {
+    "auditGroups": 34,
+    "assertionGroups": 8,
+    "status": "authored",
+    "crosswalk": "scenario-completion.md",
+    "manualBrowserCases": 14,
+    "executionCoverage": "blocked; not passed"
+  },
+  "frontend": {
+    "command": "npx --yes pnpm@10.34.6 --dir frontend test:run",
+    "exitCode": 1,
+    "collected": 61,
+    "passed": 6,
+    "failed": 55,
+    "blockedSuites": [
+      "frontend/src/features/orders/__tests__/order-api.test.ts",
+      "frontend/src/features/orders/__tests__/order-export-state.test.tsx",
+      "frontend/src/features/orders/__tests__/order-query.test.ts",
+      "frontend/src/features/orders/__tests__/order-selection.test.ts"
+    ],
+    "reportSha256": "250f57a3f428367fd30d7b07594c4d83d90c670d1b295864b229ef818fce40f6"
+  },
+  "backend": {
+    "command": "mvn -B -f tests/backend/pom.xml test",
+    "exitCode": 0,
+    "tests": 304,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 300,
+    "passed": 4,
+    "suites": [
+      {
+        "name": "com.exportflow.RuntimeCapabilityTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 5,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.RuntimeConfigurationTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 1,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.RuntimeSecurityTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 5,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.dispatch.BrokerPolicyBoundaryTest",
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 9,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.dispatch.DispatchSchedulingTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 2,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.dispatch.OutboxDeadlineRaceTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 6,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.dispatch.OutboxDispatchMySqlTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 1,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.dispatch.OutboxFailureWindowsTest",
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 9,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.dispatch.OutboxTimeoutMySqlTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 4,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.dispatch.PublisherCorrelationTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 5,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.dispatch.RabbitMqPublisherTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 5,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.exporttasks.CreateTransactionMySqlTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 4,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.exporttasks.CreationAsyncBoundaryTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 2,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.exporttasks.CreationInputBoundaryTest",
+        "tests": 36,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 36,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.exporttasks.CreationResultMySqlTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 3,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.exporttasks.ExportCreationContractTest",
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 9,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.exporttasks.IdempotencyMySqlTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 4,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.orders.ApiPerformanceTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 1,
+        "skipReasons": [
+          "System property [exportflow.performance] does not exist"
+        ]
+      },
+      {
+        "name": "com.exportflow.orders.OrderApiContractTest",
+        "tests": 14,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 14,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.orders.OrderQueryBoundaryTest",
+        "tests": 22,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 22,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.orders.OrderQueryMySqlTest",
+        "tests": 14,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 14,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.testing.TestEnvironmentTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.worker.ArtifactCleanupConcurrencyTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 6,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.worker.ArtifactCleanupRaceTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 1,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.worker.BadCommandIsolationTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 4,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.worker.CheckpointRecoveryTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 2,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.worker.DownloadBoundaryTest",
+        "tests": 13,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 13,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.worker.DownloadExportFileTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 3,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.worker.DurabilityGuardTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 5,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.worker.ExcelBoundaryTest",
+        "tests": 13,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 13,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.worker.ExcelContentTest",
+        "tests": 24,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 24,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.worker.ExcelPerformanceTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 1,
+        "skipReasons": [
+          "System property [exportflow.performance] does not exist"
+        ]
+      },
+      {
+        "name": "com.exportflow.worker.ExcelResourceTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 1,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.worker.ExcelValidationBoundaryTest",
+        "tests": 13,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 13,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.worker.ExecutionLeaseMySqlTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 2,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.worker.ExecutionSupervisionTest",
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 7,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.worker.ExportCommandHandlerTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 5,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.worker.ExportProgressMySqlTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 1,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.worker.GeneratorBoundaryTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 1,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.worker.RecoveryFailureWindowsTest",
+        "tests": 23,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 23,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.worker.WorkerFailureWindowsTest",
+        "tests": 14,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 14,
+        "skipReasons": []
+      }
+    ],
+    "reportManifestSha256": "9710ffe43db0f66256f4ed29263e662eb9f72acb0c8d440e131a95156159820f",
+    "missingProductionEntry": 298,
+    "performanceDisabledSuiteRecords": 2,
+    "skipReason": "298个缺正式入口，另2个性能套件记录因默认开关关闭跳过；4个环境通过不代表业务通过。"
+  },
+  "performanceEnabled": {
+    "command": "mvn -B -f tests/backend/pom.xml test -Dexportflow.performance=true -Dtest=ApiPerformanceTest,ExcelPerformanceTest -Dsurefire.reportNameSuffix=performance-enabled -DargLine=\"-Xms512m -Xmx512m\"",
+    "exitCode": 0,
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 3,
+    "passed": 0,
+    "suites": [
+      {
+        "name": "com.exportflow.orders.ApiPerformanceTest(performance-enabled)",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 1,
+        "skipReasons": []
+      },
+      {
+        "name": "com.exportflow.worker.ExcelPerformanceTest(performance-enabled)",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 2,
+        "skipReasons": []
+      }
+    ],
+    "reportManifestSha256": "4d8d81bac41c2b8ce28c901f75fa84096db4e523f2e161f17da6b65266ab8bf7",
+    "measurement": "not-run: all three scenarios blocked by absent production entry"
+  },
+  "checks": {
+    "backendTestCompileExitCode": 0,
+    "typecheckExitCode": 1,
+    "typecheckReason": "12处生产模块/导出缺失，无额外测试源码类型诊断",
+    "productionBuild": "not-run",
+    "performance": "programs authored; measurement blocked",
+    "browserMatrix": "14 manual cases authored; not-run",
+    "traceability": {
+      "scope": "docs/**/*.md、specs/002-order-management、constitution、AGENTS、tests/README及测试源码链接",
+      "markdownFiles": 48,
+      "localMarkdownLinks": 1677,
+      "sourceLinks": 208,
+      "tableCount": 153,
+      "activeACCount": 44,
+      "allActiveACHadSourceReference": true,
+      "plannedFiles": 221,
+      "listedFiles": 221,
+      "auditGroups": 34,
+      "assertionGroups": 8,
+      "errors": [],
+      "exitCode": 0
+    }
+  },
+  "cleanup": {
+    "testContainersRemaining": 0,
+    "sharedConfigurationOrDataModified": false
+  },
+  "limitations": "场景和验证程序补充完成；生产入口/模块缺失及真实装配未核验，测试阶段与业务验收不宣称通过。"
+}

@@ -4,17 +4,35 @@
 
 本仓库采用规格驱动开发方法和中文规格模板。项目原则位于 `.specify/memory/constitution.md`。当前技术决策见 [`docs/adr/`](docs/adr/)，新出现且尚未决定的事项记录在 [`docs/decisions-pending.md`](docs/decisions-pending.md)。
 
-已确认技术栈：React + TypeScript + Vite + Ant Design 前端，Java 21 + Spring Boot 3 + MySQL 8.4 后端，Apache POI 流式生成 Excel；RabbitMQ 承担导出任务队列，MyBatis 负责数据库访问，Flyway 管理迁移，Redis 缓存最新进度。当前静态前端的本地启动见下方“项目启动”；后端启动、项目自身容器、CI、打包和发布方式尚未确定。其他运行参数、执行恢复和跨实例 SSE 通知也待决策，详见 [`docs/rules/backend.md`](docs/rules/backend.md) 与[待确认决策](docs/decisions-pending.md)。
+已确认技术栈：React + TypeScript + Vite + Ant Design 前端，Java 21 + Spring Boot 3 + MySQL 8.4 后端，Apache POI 流式生成 Excel；RabbitMQ 承担导出任务队列，MyBatis 负责数据库访问，Flyway 管理迁移。执行恢复及本地工具链见[ADR-0008](docs/adr/0008-worker-execution-lease-and-recovery.md)和[ADR-0009](docs/adr/0009-engineering-runtime-and-progress-notification.md)。Redis进度缓存、完整任务页及SSE后续实施；本期交付静态dist和可执行jar，远程发布延期。
 
 规格流程仅负责开发阶段的需求、计划和任务拆分；构建、测试执行、打包、容器和发布遵循 `docs/rules/` 中的项目规则。中高风险变更使用 `spec.md`、`plan.md`、`tasks.md` 及按需生成的附属产物。
 
-2026-10-07 已按[项目初始化与基础骨架规格](specs/001-project-bootstrap/spec.md) 创建可运行静态前端、两个文字占位页和前后端职责文件；[计划](specs/001-project-bootstrap/plan.md) 提供逐文件设计，[任务清单](specs/001-project-bootstrap/tasks.md) 记录授权及验证缺口。后端目前只是注释占位。本轮不生成测试代码的用户明确指令仅适用于此静态骨架，不改变其他功能的测试先行要求。
+2026-10-07 已按[基础骨架规格](specs/001-project-bootstrap/spec.md)创建前端及职责占位，原验证记录保留。后续订单开发遵循[订单规格](specs/002-order-management/spec.md)及其独立测试先行与授权记录。
 
 ## 项目启动
 
-2026-10-07 已修订[订单管理与后端异步流程规格草稿](specs/002-order-management/spec.md)，[计划](specs/002-order-management/plan.md)列明文件变动及函数签名，[任务清单](specs/002-order-management/tasks.md)记录验收映射与两次审批。本次草稿0.2包含真实Excel生成、异常恢复及下载，详细流程见[Excel方案](specs/002-order-management/excel-design.md)。当前仅准备文档；下方启动方式仍适用于既有静态骨架，不能据规格草稿认为订单接口或后端已实现。
+2026-10-11[订单规格0.4](specs/002-order-management/spec.md)已获开发授权。订单页面及集中API已实现，153项前端测试、类型检查和构建通过。2026-10-12删除订单造数，后端直接读取负责人容器中的110000条订单；当前功能回归300项通过，正式质量门禁通过，110000行Excel五次独立测量成功。性能测试已按负责人要求停止，本轮开发与review收尾；剩余验证由负责人确认本轮无需执行，适用验证与免验记录已收尾，不将免验记作实测通过。实际状态见[任务清单](specs/002-order-management/tasks.md)和[来源结果](docs/validation/002-order-management/provided-data.md)。
 
-以下命令均在项目根目录执行，适用于 Windows PowerShell。当前静态前端可独立运行，无需启动后端、MySQL、RabbitMQ 或 Redis。
+以下命令均在项目根目录执行，适用于 Windows PowerShell。订单查询和创建需要后端；任务管理仍为文字占位。后端不可达时，订单页显示可重试的请求错误。
+
+### Make 启动入口
+
+已有容器保持运行。安装Java21、Node22和GNU Make后，复制连接配置并填写真实值：
+
+```powershell
+if (-not (Test-Path .env.local)) { Copy-Item .env.example .env.local }
+# 填写 .env.local 中的运行、迁移和 MQ 凭据。
+make dev
+```
+
+前端打开[http://127.0.0.1:5173/orders](http://127.0.0.1:5173/orders)，后端监听127.0.0.1:8080；按Ctrl+C停止应用。也可分别执行`make frontend`和`make backend`，`make build`生成dist与jar，`make help`查看全部入口。脚本固定使用pnpm10.34.6，启动不执行测试或性能专项。
+
+Windows PowerShell也可直接执行`./make dev`，根[make.cmd](make.cmd)会找到本机已安装的GNU Make，无需先刷新当前终端PATH。
+
+导出文件和断点存放在项目根目录的`export-data/`，由`.env.local`中的`EXPORT_FLOW_FILE_ROOT`绝对路径指定，该目录已被Git忽略。完成的Excel位于`export-data/tasks/<任务ID>/artifacts/<文件ID>.xlsx`；修改此配置后需重新启动后端。
+
+应用库export_flow、账号及MQ vhost /export-flow需已准备；容器启动不代表这些应用资源存在。入口只复用已有服务，不创建容器、不造订单数据。Windows Make安装、连接权限和无Make时的命令见[脚本说明](scripts/README.md)，本次核验见[启动入口记录](docs/validation/002-order-management/startup-entry.md)。下方保留直接工具链命令供单独操作。
 
 ### 环境要求
 
@@ -60,7 +78,14 @@ pnpm --dir frontend preview
 
 ### 后端启动状态
 
-当前后端仅包含目录与中文职责注释，尚无可运行的 Spring Boot 入口、有效 Maven 工程、Wrapper 或连接配置，因此本阶段没有后端启动命令。后续完成后端初始化时，在本节补充环境配置与实际启动步骤。
+准备本机独立MySQL schema、RabbitMQ vhost、外部凭据和文件根后，按[quickstart](specs/002-order-management/quickstart.md)运行正式工程：
+
+```powershell
+backend/mvnw.cmd -f backend/pom.xml -Dmaven.test.skip=true package
+java -jar backend/target/export-flow-0.2.0-SNAPSHOT.jar --export-flow.consumer-enabled=true
+```
+
+应用仅绑定127.0.0.1:8080，Vite开发代理指向该地址。Flyway使用独立迁移凭据，运行账号仅能读取订单。订单[直接复用已有数据](specs/002-order-management/provided-data.md)，本项目造数工具及合成SQL已删除，不创建或初始化订单表。上述命令为当前入口，门禁结果以实施进度记录为准。
 
 模块职责详见[前端说明](frontend/README.md)与[后端说明](backend/README.md)；本轮实际命令和页面验证见[验证环境](docs/validation/001-project-bootstrap/environment.md)。
 
@@ -91,8 +116,8 @@ pnpm --dir frontend preview
 │   ├── rules/                        # 前后端、测试、构建、容器等领域细则
 │   ├── adr/                          # 架构决策记录
 ├── scripts/                          # 项目级检查和自动化脚本
-├── frontend/                         # 可运行静态前端；模块职责见 frontend/README.md
-└── backend/                          # 注释占位的后端职责结构；目前无可运行服务
+├── frontend/                         # 订单管理与静态任务页；统一业务API
+└── backend/                          # Spring Boot、MyBatis、Flyway及异步文件链路
 ```
 
 ## 规则权级和文件权限

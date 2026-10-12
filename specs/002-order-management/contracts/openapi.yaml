@@ -615,6 +615,14 @@
           },
           "filter": {
             "$ref": "#/components/schemas/OrderFilter"
+          },
+          "excludedOrderIds": {
+            "type": "array",
+            "maxItems": 200000,
+            "description": "排除订单ID；原输入长度先校验，集合去重排序；空数组等价省略。只减少与当前filter的交集，排除ID必须存在。",
+            "items": {
+              "$ref": "#/components/schemas/OrderId"
+            }
           }
         }
       },

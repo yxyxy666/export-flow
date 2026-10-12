@@ -1,3 +1,8 @@
-// 职责：明确分页契约后的通用分页 DTO，不先猜字段。
-// 本轮仅预留职责，无业务实现，不导入静态应用。
-// 设计依据：specs/001-project-bootstrap/plan.md；未来实现按对应功能规格审批。
+// 设计与测试：[任务记录](../../../../specs/002-order-management/tasks.md)。
+/** 服务端分页结果；total必须是安全整数，不截断64位计数。 */
+export interface PageResult<T> {
+  items: T[];
+  page: number;
+  pageSize: 20 | 50 | 100;
+  total: number;
+}

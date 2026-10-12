@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 设计 data-model.md；TC-235/236。 -->
+<mapper namespace="com.exportflow.exporttasks.infrastructure.persistence.ArtifactMapper">
+  <sql id="columns">artifact_id,task_id,data_generation,configuration_hash,storage_ref,row_count,byte_size,checksum,file_name,state,created_by_owner,created_by_fence,ready_at,adopted_by_fence,cleanup_token</sql>
+  <select id="findReady" resultType="com.exportflow.exporttasks.infrastructure.persistence.ArtifactRecord">SELECT <include refid="columns"/> FROM export_artifacts WHERE task_id=#{taskId} AND state IN ('READY','ADOPTED') ORDER BY ready_at,artifact_id LIMIT 1</select>
+  <select id="findAdopted" resultType="com.exportflow.exporttasks.infrastructure.persistence.ArtifactRecord">SELECT a.* FROM export_artifacts a JOIN export_tasks t ON t.result_artifact_id=a.artifact_id WHERE t.task_id=#{taskId} AND t.status='SUCCEEDED' AND a.state='ADOPTED'</select>
+  <select id="find" resultType="com.exportflow.exporttasks.infrastructure.persistence.ArtifactRecord">SELECT <include refid="columns"/> FROM export_artifacts WHERE artifact_id=#{artifactId}</select>
+  <select id="lockArtifact" resultType="com.exportflow.exporttasks.infrastructure.persistence.ArtifactRecord">SELECT <include refid="columns"/> FROM export_artifacts WHERE artifact_id=#{artifactId} FOR UPDATE</select>
+  <insert id="insertReady">INSERT INTO export_artifacts(<include refid="columns"/>) VALUES(#{artifactId},#{taskId},#{dataGeneration},#{configurationHash},#{storageRef},#{rowCount},#{byteSize},#{checksum},#{fileName},#{state},#{createdByOwner},#{createdByFence},#{readyAt},#{adoptedByFence},#{cleanupToken})</insert>
+  <update id="adopt">UPDATE export_artifacts SET state='ADOPTED',adopted_by_fence=#{fence} WHERE task_id=#{taskId} AND artifact_id=#{artifactId} AND state='READY' AND cleanup_token IS NULL</update>
+  <insert id="insertCandidate">INSERT INTO export_cleanup_candidates(candidate_id,storage_ref,task_id,owner_id,fence,kind,observed_at,state,cleanup_token) VALUES(#{candidateId},#{storageRef},#{taskId},#{ownerId},#{fence},#{kind},#{observedAt},#{state},#{cleanupToken}) ON DUPLICATE KEY UPDATE candidate_id=candidate_id</insert>
+  <select id="lockCandidate" resultType="com.exportflow.exporttasks.infrastructure.persistence.ArtifactMapper$CleanupCandidateRecord">SELECT * FROM export_cleanup_candidates WHERE storage_ref=#{ref} FOR UPDATE</select>
+  <update id="claimCleanup">UPDATE export_cleanup_candidates SET state='CLEANING',cleanup_token=#{token} WHERE candidate_id=#{id} AND state='OBSERVED'</update>
+  <update id="completeCleanup">UPDATE export_cleanup_candidates SET state='CLEANED' WHERE candidate_id=#{id} AND state='CLEANING' AND cleanup_token=#{token}</update>
+  <select id="blockReferences" resultType="long">SELECT COUNT(*) FROM export_data_blocks WHERE storage_ref=#{ref}</select>
+  <select id="artifactReferences" resultType="long">SELECT COUNT(*) FROM export_artifacts WHERE storage_ref=#{ref} AND state IN ('READY','ADOPTED')</select>
+  <select id="findCandidates" resultType="com.exportflow.exporttasks.infrastructure.persistence.ArtifactMapper$CleanupCandidateRecord">
+    SELECT c.* FROM export_cleanup_candidates c WHERE c.state IN ('OBSERVED','CLEANING')
+      AND c.observed_at&lt;=UTC_TIMESTAMP(3)-INTERVAL 24 HOUR
+      AND NOT EXISTS(SELECT 1 FROM export_data_blocks b WHERE b.storage_ref=c.storage_ref)
+      AND NOT EXISTS(SELECT 1 FROM export_artifacts a WHERE a.storage_ref=c.storage_ref AND a.state IN ('READY','ADOPTED'))
+      AND NOT EXISTS(SELECT 1 FROM task_execution e WHERE e.task_id=c.task_id AND e.lease_until&gt;UTC_TIMESTAMP(3)
+        AND e.attempt_deadline&gt;UTC_TIMESTAMP(3) AND (c.fence IS NULL OR c.fence=e.fence))
+    ORDER BY c.observed_at,c.candidate_id LIMIT #{limit}
+  </select>
+</mapper>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 设计 data-model.md；TC-221/222实际锁序与持久重试。 -->
+<mapper namespace="com.exportflow.dispatch.infrastructure.persistence.CommandOutboxMapper">
+  <sql id="columns">event_id,task_id,type,schema_version,status,accepted_at,dispatch_deadline,next_attempt_at,attempt_no,lease_owner,lease_token,lease_until</sql>
+  <select id="findDue" resultType="string">SELECT o.task_id FROM command_outbox o JOIN export_tasks t ON t.task_id=o.task_id WHERE t.status='PENDING' AND o.status IN ('READY','LEASED') AND o.dispatch_deadline&gt;UTC_TIMESTAMP(3) AND o.next_attempt_at&lt;=UTC_TIMESTAMP(3) AND (o.status='READY' OR o.lease_until&lt;=UTC_TIMESTAMP(3)) ORDER BY o.next_attempt_at,o.event_id LIMIT #{limit}</select>
+  <select id="lockByTask" resultType="com.exportflow.dispatch.infrastructure.persistence.CommandOutboxRecord">SELECT <include refid="columns"/> FROM command_outbox WHERE task_id=#{taskId} FOR UPDATE</select>
+  <select id="find" resultType="com.exportflow.dispatch.infrastructure.persistence.CommandOutboxRecord">SELECT <include refid="columns"/> FROM command_outbox WHERE event_id=#{eventId}</select>
+  <update id="reserveAttempt">UPDATE command_outbox SET status='LEASED',lease_owner=#{owner},lease_token=#{token},lease_until=#{leaseUntil},attempt_no=#{attempt},next_attempt_at=#{nextAt} WHERE event_id=#{eventId}</update>
+  <insert id="insertAttempt">INSERT INTO dispatch_attempts(event_id,attempt_no,lease_token,started_at,crash_retry_at) VALUES(#{eventId},#{attempt},#{token},#{now},#{nextAt})</insert>
+  <update id="markSent">UPDATE command_outbox SET status='SENT',sent_at=#{now},lease_owner=NULL,lease_token=NULL,lease_until=NULL,last_error_code=NULL WHERE event_id=#{eventId} AND status='LEASED' AND lease_token=#{token}</update>
+  <update id="scheduleRetry">UPDATE command_outbox SET status='READY',next_attempt_at=#{nextAt},last_error_code=#{safeCode},lease_owner=NULL,lease_token=NULL,lease_until=NULL WHERE event_id=#{eventId} AND status='LEASED' AND lease_token=#{token}</update>
+  <update id="finishAttempt">UPDATE dispatch_attempts SET finished_at=#{now},outcome=#{outcome},safe_error=#{safeCode} WHERE event_id=#{eventId} AND attempt_no=#{attempt} AND lease_token=#{token} AND finished_at IS NULL</update>
+  <select id="findExpired" resultType="string">SELECT task_id FROM command_outbox WHERE status IN ('READY','LEASED') AND dispatch_deadline&lt;=UTC_TIMESTAMP(3) ORDER BY dispatch_deadline,event_id LIMIT #{limit}</select>
+  <update id="close">UPDATE command_outbox SET status='CLOSED',closed_at=#{now},close_reason=#{reason},lease_owner=NULL,lease_token=NULL,lease_until=NULL WHERE event_id=#{eventId} AND status IN ('READY','LEASED')</update>
+</mapper>

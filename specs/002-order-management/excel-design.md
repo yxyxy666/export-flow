@@ -1,6 +1,6 @@
 # Excel 生成、异常恢复与文件下载设计
 
-**日期／版本**：2026-10-11／草稿 0.4。负责人已明确本次规格包含真实 Excel；本文只作设计，不产生实现或测试代码。由 [plan](plan.md) 直接引用，与 [spec](spec.md)、[tasks](tasks.md)、[函数清单](function-design.md) 一并审批。架构来源为已接受技术栈及 [ADR-0008](../../docs/adr/0008-worker-execution-lease-and-recovery.md) 已接受的执行恢复子集；批准依据见[决策记录](decision-record.md)，规格整体仍待审。
+**日期／版本**：2026-10-11／草稿 0.4。负责人已明确本次规格包含真实 Excel；本文只作设计，不产生实现或测试代码。由 [plan](plan.md) 直接引用，与 [spec](spec.md)、[tasks](tasks.md)、[函数清单](function-design.md) 一并审批。架构来源为已接受技术栈及 [ADR-0008](../../docs/adr/0008-worker-execution-lease-and-recovery.md) 已接受的执行恢复子集；批准依据见[决策记录](decision-record.md)，规格整体已批准进入测试先行，测试阶段审批仍待实际证据与单独评审。
 
 ## 已确定范围与设计决策
 
@@ -84,7 +84,7 @@ SXSSF私有临时文件不作跨进程断点。组装中断保留已登记的数
 └── scratch/{processInstanceId}/
 ```
 
-根目录外部配置，不在仓库提交绝对路径。逻辑引用只使用服务端UUID和合法枚举；resolve normalize后须位于root，拒绝符号链接／Windows reparse逃逸，不能用HTTP文件名拼路径。就绪文件publish同卷ATOMIC_MOVE且无覆盖目标；不支持时明确失败并阻止该存储被启用，不偷偷改为可观察半成品的复制。文件内容force不宣称Windows目录元数据已具备宿主断电级保证，本期承诺进程退出/重启窗口，宿主磁盘灾难损坏不自动恢复成功文件。
+根目录按2026-10-13负责人要求使用项目根目录export-data，标准入口固定项目工作目录；应用默认使用user.dir/export-data，可通过EXPORT_FLOW_FILE_ROOT覆盖为受控绝对路径，本机实际值仅存.env.local。export-data整体由Git忽略，产物、断点和临时运行文件均不上传。逻辑引用只使用服务端UUID和合法枚举；resolve normalize后须位于root，拒绝符号链接／Windows reparse逃逸，不能用HTTP文件名拼路径。就绪文件publish同卷ATOMIC_MOVE且无覆盖目标；不支持时明确失败并阻止该存储被启用，不偷偷改为可观察半成品的复制。文件内容force不宣称Windows目录元数据已具备宿主断电级保证，本期承诺进程退出/重启窗口，宿主磁盘灾难损坏不自动恢复成功文件。
 
 artifactId、taskId、dataGeneration、configurationHash、rowCount、size、checksum、逻辑引用和humanFileName构成就绪证明。生成者持有效owner/fence时事务登记READY；文件已存在但无证明为残留。接管者用同一校验器验证READY文件，实际引用/大小/SHA/行数/配置必须与数据库ArtifactProof相符，才可用新fence采用，成功与唯一resultArtifactId同事务提交；旧执行者不能覆盖选中的文件或登记新引用。成功提交不明先回读，不删候选产物或写FAILED。
 

@@ -11,15 +11,17 @@
 
 ## 本地工程与测试
 
-采用Java 21、Spring Boot 3.5、Spring MVC、Maven 3.9 Wrapper；测试采用JUnit Jupiter、AssertJ、Spring Boot Test、MockMvc和Testcontainers。关键边界使用真实MySQL 8.4、RabbitMQ 3.13和Redis 7.4隔离环境，不改用H2。Redis暂不升级8，未来变更单独评审。
+采用Java 21、Spring Boot 3.5、Spring MVC、Maven 3.9 Wrapper；测试采用JUnit Jupiter、AssertJ、Spring Boot Test、MockMvc。2026-10-11负责人明确要求直接复用project-export-flow，替代先前Testcontainers独立容器方案；每用例以专属schema/vhost/账号隔离，网络故障只关闭测试TCP连接。关键边界使用真实MySQL 8.4、RabbitMQ 3.13和Redis 7.4隔离环境，不改用H2。Redis暂不升级8，未来变更单独评审。
 
 MySQL使用READ COMMITTED；候选扫描与授权分开。并发领取使用短事务、固定锁序及FOR UPDATE SKIP LOCKED，不先锁Outbox再回锁task。隔离、锁定SQL的运行正确性须在测试阶段证明，选型确认不等于已经运行通过。
 
-本地应用运行在宿主机，后端只绑定127.0.0.1:8080，Vite只绑定127.0.0.1:5173并将/api代理到后端。复用现有中间件；项目使用独立schema、vhost和键前缀。文件根由外部配置，默认位于LOCALAPPDATA下的ExportFlow/data，不放进仓库或进程临时目录。本期不新增Compose，不部署远程环境。
+本地应用运行在宿主机，后端只绑定127.0.0.1:8080，Vite只绑定127.0.0.1:5173并将/api代理到后端。复用现有中间件；项目使用独立schema、vhost和键前缀。文件根由外部配置，目录跨进程重启保留且不提交版本控制；未配置时应用默认使用user.dir/export-data，标准启动入口固定工作目录为项目根。2026-10-13负责人明确要求改到当前项目根目录，当前本机.env.local使用export-data绝对路径，配置示例说明默认值及可选覆盖，该目录为被Git忽略的运行目录，包含产物、断点及临时工作区；原任务目录结构保持不变，日志独立配置。本期不新增Compose，不部署远程环境。
 
 本期只使用本地自动化门禁，不新增托管CI工作流。交付物为前端dist目录与后端可执行jar，构建报告与来源摘要保存在本地artifacts；版本控制只提交小型验证证据。后续远程发布、应用容器化和多主机文件存储已明确延期，不作为当前缺失选型。
 
 ## 命令保留与异常消息
+
+2026-10-12负责人进一步明确：业务订单直接读取其容器已有的`exportflow.orders`，删除本项目造数工具及SQL夹具，不修改来源表与数据。应用私有schema内仅保留必要业务任务表及订单只读适配视图；测试用现有行，不补造200000规模，数据不足按负责人指示记录而不计失败。字段、权限及迁移边界见[来源方案](../../specs/002-order-management/provided-data.md)。
 
 本地使用durable direct exchange、durable classic queue、persistent消息、mandatory和相关发布确认。队列无TTL、expiry、自动删除或drop-head；本期不设置队列长度上限，以监测和停止新受理处理容量风险。不得给原命令配置自动死信或重交付次数上限，使仍需执行的命令被静默删除。
 
@@ -43,7 +45,7 @@ Redis只缓存版本化最新进度，TTL10分钟，应用最多保留10000个�
 
 后端采用Spotless、Checkstyle、SpotBugs和JaCoCo；前端使用现有类型检查、Vitest及生产构建。实现完成后的门禁要求格式/检查通过、SpotBugs高置信高优先级问题为零，覆盖率生成报告但不设置未经基线验证的百分比阈值。无浏览器E2E门禁；目标为Windows上当前稳定Chrome和Edge，1280×720及键盘/焦点手工验证。IAB是开发检查辅助工具，其未知精确版本不再作为目标浏览器认证依据。
 
-性能采用本机记录的参考配置、独立512MB JVM、固定种子、独立服务和串行负载，详见[决策记录](../../specs/002-order-management/decision-record.md)。环境事实、实际测试证据和验收缺口继续据实记录，不能通过决策批准将未执行验证标为通过。
+性能采用本机记录的参考配置、独立512MB JVM、固定种子、共享服务内的隔离数据与串行负载；不调整共享服务CPU/内存限制，记录与原参考环境的差异，详见[决策记录](../../specs/002-order-management/decision-record.md)。环境事实、实际测试证据和验收缺口继续据实记录，不能通过决策批准将未执行验证标为通过。
 
 ## 后果与回退
 

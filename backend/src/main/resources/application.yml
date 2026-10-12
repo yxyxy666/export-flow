@@ -1,3 +1,66 @@
-# 职责：未来环境变量和运行配置映射。
-# 本轮仅职责占位，不配置服务、账号或中间件地址。
-# 设计依据：specs/001-project-bootstrap/plan.md。
+# 规格：specs/002-order-management/decision-record.md；凭据全部由外部注入。
+server:
+  address: 127.0.0.1
+  port: 8080
+  tomcat:
+    accesslog:
+      enabled: false
+spring:
+  datasource:
+    url: ${EXPORT_FLOW_JDBC_URL}
+    username: ${EXPORT_FLOW_DB_USER}
+    password: ${EXPORT_FLOW_DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 5000
+      transaction-isolation: TRANSACTION_READ_COMMITTED
+      connection-init-sql: "SET time_zone = '+00:00', innodb_lock_wait_timeout = 5"
+  rabbitmq:
+    addresses: ${EXPORT_FLOW_AMQP_URL}
+    virtual-host: /export-flow
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    connection-timeout: 2000
+    requested-heartbeat: 30
+    listener:
+      simple:
+        acknowledge-mode: manual
+        concurrency: 1
+        max-concurrency: 1
+        prefetch: 1
+        auto-startup: ${export-flow.consumer-enabled:false}
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+      fail-on-trailing-tokens: true
+  mvc:
+    log-request-details: false
+mybatis:
+  mapper-locations: classpath:mappers/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+export-flow:
+  management-url: ${EXPORT_FLOW_MANAGEMENT_URL:http://127.0.0.1:15672}
+  consumer-enabled: false
+  file-root: ${EXPORT_FLOW_FILE_ROOT:${user.dir}/export-data}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+logging:
+  file:
+    name: ${EXPORT_FLOW_LOG_FILE:${LOCALAPPDATA}/ExportFlow/logs/export-flow.log}
+  logback:
+    rollingpolicy:
+      max-history: 7
+      file-name-pattern: ${EXPORT_FLOW_LOG_FILE:${LOCALAPPDATA}/ExportFlow/logs/export-flow.log}.%d{yyyy-MM-dd}.%i.gz
+  level:
+    com.exportflow: INFO
+    org.springframework.web: WARN
+    com.zaxxer.hikari: WARN
+    org.flywaydb: WARN

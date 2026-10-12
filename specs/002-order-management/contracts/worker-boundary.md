@@ -1,6 +1,6 @@
 # Worker 编排与真实 Excel 契约
 
-**版本／状态**：草稿0.4。生成、异常恢复及下载纳入本期；执行权/断点/就绪对账子集已在[ADR-0008](../../../docs/adr/0008-worker-execution-lease-and-recovery.md)接受，参数与异常消息见[决策记录](../decision-record.md)；规格整体仍待单独批准。关联[函数](../function-design.md)、[模型](../data-model.md)、[Excel方案](../excel-design.md)、[消息](export-command.md)、[tasks](../tasks.md)。
+**版本／状态**：草稿0.4。生成、异常恢复及下载纳入本期；执行权/断点/就绪对账子集已在[ADR-0008](../../../docs/adr/0008-worker-execution-lease-and-recovery.md)接受，参数与异常消息见[决策记录](../decision-record.md)；0.4规格已批准进入测试先行，测试阶段仍待单独批准。关联[函数](../function-design.md)、[模型](../data-model.md)、[Excel方案](../excel-design.md)、[消息](export-command.md)、[tasks](../tasks.md)。
 
 ## 实际执行链
 

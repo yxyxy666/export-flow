@@ -2,9 +2,11 @@
 
 **状态**：草稿0.4；与[函数设计稿](function-design.md)、[计划](plan.md)、[规格](spec.md)和[任务](tasks.md)共同评审。
 
-本附录用于按需核对文件落点、完整签名、类型、调用及测试归属。业务评审从[函数设计稿的创建流程](function-design.md#一创建任务)进入。端口、实现和SQL分别登记，但不分别算作业务步骤。新增代码文件尚未生成。
+本附录用于按需核对文件落点、完整签名、类型、调用及测试归属。业务评审从[函数设计稿的创建流程](function-design.md#一创建任务)进入。端口、实现和SQL分别登记，但不分别算作业务步骤。2026-10-11负责人明确授权开始开发，统一API、请求与错误处理及协议schema已实施；其余文件依任务逐步实施，进度见[任务记录](tasks.md#测试进度与证据)。
 
-签名中的`?`表示可选或可空，其余参数必填；无参数、默认值及void返回逐项标明。自有类型见[数据模型](data-model.md)。辅助函数只说明必要的转换、校验或资源步骤；私有步骤留在所属服务内，纯转发合并。实现与端口相同的职责/流程引用端口，不重复展开。框架内部方法、机械record构造和访问器、无行为的Bean装配不展开；测试只列计划场景。
+签名中的`?`表示可选或可空，其余参数必填；无参数、默认值及void返回逐项标明。自有类型见[数据模型](data-model.md)。辅助函数只说明必要的转换、校验或资源步骤；私有步骤留在所属服务内，纯转发合并。实现与端口相同的职责/流程引用端口，不重复展开。框架内部方法、机械record构造和访问器、无行为的Bean装配不展开；测试设计表列计划范围，真实代码与进度见[任务记录](tasks.md#测试进度与证据)。
+
+2026-10-12[003增量函数设计](../003-select-all-filtered/plan.md#函数设计草稿)更新选择包含/排除、DatePicker桥接、排除解析/计数/关联和配置身份；本附录原流程继续作为基础，新增签名以该链接及实现为准。
 
 ## 逐函数签名、注释与调用
 
@@ -48,7 +50,7 @@
 
 | 名称、参数与返回值 | 中文注释草稿 | 简短实现流程 | 调用关系 | 结果／错误出口 |
 | --- | --- | --- | --- | --- |
-| `OrderTable(props: OrderTableProps): ReactElement` | 展示服务端当前页并保留跨页 ID 选择。 | rowKey=id→受控选择→排序回调；不缓存整页对象 | Ant Design Table、props.onToggle、props.onSort | 未知枚举用模型回退；不触发隐式请求 |
+| `OrderTable(props: OrderTableProps): ReactElement` | 展示服务端当前页并保留跨页 ID 选择。props新增isSelectionDisabled:boolean，独立于冻结所有操作的isDisabled:boolean。 | rowKey=key→受控选择→排序回调；旧行仅展示，有效查询恢复后允许选择 | Ant Design Table、props.onToggle、props.onSort | 未知枚举用模型回退；不触发隐式请求；查询中可继续分页/排序 |
 
 ### frontend/src/features/orders/components/export-config-dialog.tsx
 
@@ -86,7 +88,7 @@
 
 | 名称、参数与返回值 | 中文注释草稿 | 简短实现流程 | 调用关系 | 结果／错误出口 |
 | --- | --- | --- | --- | --- |
-| `useOrderSelection(filterKey: string): UseOrderSelectionResult` | 按已提交筛选管理选择生命周期。 | useReducer→filterKey 改变 CLEAR→返回只读集合与 dispatch | reduceOrderSelection | 无 |
+| `useOrderSelection(filterKey: string,total: number): UseOrderSelectionResult` | 管理包含/排除选择生命周期。 | filterKey改变CLEAR，返回mode/ids/count/notice/dispatch | reduceOrderSelection/getSelectionCount；[003函数](../003-select-all-filtered/plan.md#函数设计草稿) | 非法/超容量保留原集合并提示 |
 
 ### frontend/src/features/orders/hooks/use-order-export.ts
 
@@ -136,7 +138,7 @@
 
 | 名称、参数与返回值 | 中文注释草稿 | 简短实现流程 | 调用关系 | 结果／错误出口 |
 | --- | --- | --- | --- | --- |
-| `reduceOrderSelection(state: OrderSelectionState, action: SelectionAction): OrderSelectionState` | 只更新指定页 ID，不丢失其他页选择。 | 复制集合→按 action 添加／移除／反选／清空 | Set API | 非法 ID 拒绝 |
+| `reduceOrderSelection(state: OrderSelectionState, action: SelectionAction): OrderSelectionState` | 更新包含/排除例外并保持跨页选择。 | 全局动作改mode；页/行只改给定ID，整批校验；[003函数](../003-select-all-filtered/plan.md#函数设计草稿) | orderIdSchema | 非法/超容量返回notice |
 
 ### frontend/src/shared/api/api.ts
 
@@ -367,7 +369,7 @@
 
 | 名称、参数与返回值 | 中文注释草稿 | 简短实现流程 | 调用关系 | 结果／错误出口 |
 | --- | --- | --- | --- | --- |
-| `insert(task: ExportTask, scope: ExportScope, fields: List<ExportField>): void` | 创建任务及固定范围关联。 | 同一创建事务插入任务和SELECTED关联 | 持久化 task与关联表 | SQL／唯一约束异常 |
+| `insert(task: ExportTask, scope: ExportScope, fields: List<ExportField>): void` | 创建任务及固定范围关联。 | 同一创建事务插入任务和SELECTED包含/FILTERED排除关联 | 持久化 task与关联表 | SQL／唯一约束异常 |
 | `findSummary(taskId: UUID): Optional<TaskSummary>` | 读取当前已提交任务摘要。 | 只读查询和领域映射 | 持久化 select summary | 依赖错误 |
 | `findSnapshot(taskId: UUID): Optional<TaskSnapshot>` | 取得执行所需权威范围与字段。 | 读任务及关联范围，不能从消息反推配置 | 持久化 task/selection 查询 | 依赖错误 |
 | `lockTask(taskId: UUID): ExportTask` | 统一争抢锁序的第一步。 | 当前事务按PK FOR UPDATE；之后才能锁outbox | 持久化锁定读 | 不存在／锁超时 |
@@ -388,7 +390,7 @@
 
 | 名称、参数与返回值 | 中文注释草稿 | 简短实现流程 | 调用关系 | 结果／错误出口 |
 | --- | --- | --- | --- | --- |
-| `insert(task: ExportTask, scope: ExportScope, fields: List<ExportField>): void` | 同[端口职责](#backendsrcmainjavacomexportflowexporttasksportexporttaskrepositoryjava)。 | 同一创建事务插入任务和SELECTED关联→记录映射 | ExportTaskMapper.insert、ExportTaskPersistenceMapper | SQL／唯一约束异常 |
+| `insert(task: ExportTask, scope: ExportScope, fields: List<ExportField>): void` | 同[端口职责](#backendsrcmainjavacomexportflowexporttasksportexporttaskrepositoryjava)。 | 同一创建事务插入任务和SELECTED包含/FILTERED排除关联→记录映射 | ExportTaskMapper.insert、ExportTaskPersistenceMapper | SQL／唯一约束异常 |
 | `findSummary(taskId: UUID): Optional<TaskSummary>` | 同[端口职责](#backendsrcmainjavacomexportflowexporttasksportexporttaskrepositoryjava)。 | 只读查询和领域映射→记录映射 | ExportTaskMapper.findSummary、ExportTaskPersistenceMapper | 依赖错误 |
 | `findSnapshot(taskId: UUID): Optional<TaskSnapshot>` | 同[端口职责](#backendsrcmainjavacomexportflowexporttasksportexporttaskrepositoryjava)。 | 读任务及关联范围，不能从消息反推配置→记录映射 | ExportTaskMapper.findSnapshot、ExportTaskPersistenceMapper | 依赖错误 |
 | `lockTask(taskId: UUID): ExportTask` | 同[端口职责](#backendsrcmainjavacomexportflowexporttasksportexporttaskrepositoryjava)。 | 当前事务按PK FOR UPDATE；之后才能锁outbox→记录映射 | ExportTaskMapper.lockTask、ExportTaskPersistenceMapper | 不存在／锁超时 |
@@ -410,10 +412,10 @@
 | 名称、参数与返回值 | 中文注释草稿 | 简短实现流程 | 调用关系 | 结果／错误出口 |
 | --- | --- | --- | --- | --- |
 | `insert(task: ExportTaskRecord): int` | 插入任务主表。 | 参数化insert | ExportTaskMapper.xml insert | SQL异常 |
-| `insertSelected(taskId: UUID, orderIds: List<Long>): int` | 批量固定已选订单。 | 有界批次插入关联，仍在同事务 | ExportTaskMapper.xml insertSelected | SQL异常 |
+| `insertScopeOrderIds(taskId: UUID, orderIds: List<Long>): int` | 批量固定包含或排除订单。 | 有界批次插入关联，仍在同事务 | ExportTaskMapper.xml insertScopeOrderIds | SQL异常 |
 | `findSummary(taskId: UUID): Optional<ExportTaskRecord>` | 读取权威摘要记录。 | select主表 | ExportTaskMapper.xml findSummary | SQL异常 |
 | `findSnapshot(taskId: UUID): Optional<ExportTaskRecord>` | 读取任务固定配置。 | select主表范围JSON | ExportTaskMapper.xml findSnapshot | SQL异常 |
-| `findSelected(taskId: UUID): List<Long>` | 恢复SELECTED范围。 | 关联表按orderId稳定读取 | ExportTaskMapper.xml findSelected | SQL异常 |
+| `findScopeOrderIds(taskId: UUID): List<Long>` | 恢复SELECTED包含或FILTERED排除范围。 | 关联表按orderId稳定读取 | ExportTaskMapper.xml findScopeOrderIds | SQL异常 |
 | `lockTask(taskId: UUID): ExportTaskRecord` | 取得共同裁决主锁。 | SELECT FOR UPDATE | ExportTaskMapper.xml lockTask | SQL异常 |
 | `failDispatchTimeout(taskId: UUID, endedAt: Instant): int` | 只更新仍PENDING的到期任务。 | 条件UPDATE；其余谓词在共享锁内确认 | ExportTaskMapper.xml failDispatchTimeout | SQL异常 |
 | `findIdempotency(keyHash: byte[]): Optional<IdempotencyDbRecord>` | 读取独立的幂等数据库记录。 | SELECT唯一键；由适配器映射为领域IdempotencyRecord | ExportTaskMapper.xml findIdempotency | SQL异常 |
@@ -503,7 +505,7 @@
 | 名称、参数与返回值 | 中文注释草稿 | 简短实现流程 | 调用关系 | 结果／错误出口 |
 | --- | --- | --- | --- | --- |
 | `insert(record: CommandOutboxRecord): int` | 插入创建命令。 | INSERT参数化 | CommandOutboxMapper.xml insert | SQL错误 |
-| `findDue(limit: int): List<UUID>` | 稳定取得候选taskId。 | next_attempt_at、event_id排序无锁查询；候选不授权 | CommandOutboxMapper.xml findDue | SQL错误 |
+| `findDue(limit: int): List<UUID>` | 稳定取得仍需要命令的候选taskId，避免旧记录占用领取名额。 | 联合任务表在LIMIT之前筛选PENDING→next_attempt_at、event_id排序无锁查询；锁内再核对，候选不授权 | CommandOutboxMapper.xml findDue | SQL错误 |
 | `lockByTask(taskId: UUID): CommandOutboxRecord` | 在task锁之后锁定原命令。 | SELECT FOR UPDATE；SKIP LOCKED选择须验证 | CommandOutboxMapper.xml lockByTask | SQL错误 |
 | `databaseNow(): Instant` | 同一权威时间做期限裁决。 | 锁获得后读取UTC_TIMESTAMP(0) | CommandOutboxMapper.xml databaseNow | SQL错误 |
 | `reserveAttempt(lease: DispatchLease, crashRetryAt: Instant): int` | 原子存领取与崩溃退避依据。 | 当前锁序下只更新outbox的lease/attempt/nextAttempt；调用方另调insertAttempt，同一事务 | CommandOutboxMapper.xml reserveAttempt/insertAttempt | SQL错误 |
@@ -656,25 +658,6 @@
 | 名称、参数与返回值 | 中文注释草稿 | 简短实现流程 | 调用关系 | 结果／错误出口 |
 | --- | --- | --- | --- | --- |
 | `check(): boolean（无参数）` | 让长工作及时遵守停止与失权。 | 读取受控监督器状态；false不能再写批次 | ExecutionSupervisor | 不以本地状态授予DB权利 |
-
-### scripts/seed-orders.ps1
-
-阶段：新增；[T-025](tasks.md#实施与测试任务)；TC-213、TC-226。
-
-| 名称、参数与返回值 | 中文注释草稿 | 简短实现流程 | 调用关系 | 结果／错误出口 |
-| --- | --- | --- | --- | --- |
-| `Invoke-SeedOrders(Count: int = 110000, Seed: int = 20261007, Schema: string（必填）, ConnectionConfig: string（必填外部路径）, Help: switch = false): int` | 协调显式且可重复的合成订单初始化。 | --help→schema白名单→正式Wrapper解析已锁JDBC/JSON classpath→Java21源文件模式调用SeedOrders.main；只传外部配置路径与数量/seed，不传密码 | Maven3.9.16、Java21、SeedOrders.main | 失败非零；不打印凭据，不触及示例schema；正式工具未就绪明确失败 |
-
-### backend/tools/SeedOrders.java
-
-阶段：新增（生产实施阶段）；[T-025](tasks.md#实施与测试任务)；TC-215。
-
-| 名称、参数与返回值 | 中文注释草稿 | 简短实现流程 | 调用关系 | 结果／错误出口 |
-| --- | --- | --- | --- | --- |
-| `main(args: String[]): void` | 在独立工具进程初始化指定隔离schema。 | 解析Count/Seed/Schema/外部JSON配置路径→复核本机URL/catalog白名单→JDBC连接→seed→安全摘要/退出 | seed、JDK DriverManager、Boot锁定Jackson | 无密码CLI/日志；非法配置非零退出，不启动Web服务 |
-| `seed(connection: Connection, count: int, seed: long): SeedOutcome` | 空库按固定算法有界初始化，已有数据仅核对。 | 短核对已有→无数据时同事务PreparedStatement每1000条executeBatch→提交；失败回滚，主键防并发重复 | verifyExistingDataset、generatedOrder、JDBC PreparedStatement | 不DROP/TRUNCATE/覆盖；断开提交不明下次先核对 |
-| `verifyExistingDataset(connection: Connection, count: int, seed: long): Optional<SeedOutcome>` | 证明数量及全部合成字段与固定算法一致。 | 查count→空库empty；非空按id有界流式读→逐行对generatedOrder，算法版本1且完全一致返回VERIFIED | generatedOrder、JDBC fetchSize=1000 | 任一不一致拒绝，不仅凭数量认为相同seed |
-| `generatedOrder(index: long, seed: long): OrderSeedRow` | 根据固定算法生成单条合成订单。 | index/seed派生确定性随机→固定基准UTC秒→合成九字段及ID，金额BigDecimal两位 | JDK SplittableRandom、BigDecimal、Instant | 纯函数，无真实客户资料、不读取机器当前时间 |
 
 ### scripts/check-order-performance.ps1
 
@@ -916,7 +899,7 @@
 | `backend/src/main/java/com/exportflow/exporttasks/application/CreateExportTransaction.java` | 新增 | 事务用例：单一显式短事务；正常返回即提交已确认 | [T-026](tasks.md#实施与测试任务)；TC-217、TC-218 |
 | `backend/src/main/java/com/exportflow/exporttasks/application/ExportRangeService.java` | 新增 | 应用：列表与导出范围复用订单条件 | [T-026](tasks.md#实施与测试任务)；TC-216 |
 | `backend/src/main/java/com/exportflow/exporttasks/application/ExportRequestCanonicalizer.java` | 新增 | 应用纯函数：摘要规范化版本1 | [T-026](tasks.md#实施与测试任务)；TC-217 |
-| `backend/src/main/java/com/exportflow/exporttasks/application/ExportTaskQueryService.java` | 后续；本次保留占位 | 未来任务列表查询边界，本期无函数设计或实现，不提供单任务详情接口 | [T-031](tasks.md#实施与测试任务)；不适用，本次仅保留 |
+| `backend/src/main/java/com/exportflow/exporttasks/application/ExportTaskQueryService.java` | 删除无用占位 | 本期不提供任务列表/详情接口；未来任务规格再定义查询用例 | [T-031](tasks.md#实施与测试任务)；无运行行为 |
 | `backend/src/main/java/com/exportflow/exporttasks/domain/ExportTask.java` | 修改占位 | 领域：任务状态与不变量；终态不可退回 | [T-026](tasks.md#实施与测试任务)、[T-028](tasks.md#实施与测试任务)、[T-029](tasks.md#实施与测试任务)；TC-218、TC-222、TC-224 |
 | `backend/src/main/java/com/exportflow/exporttasks/domain/ExportScope.java` | 新增 | 领域：SELECTED/FILTERED 及稳定读取 OrderCursor(createdAt,id) | [T-026](tasks.md#实施与测试任务)；TC-216 |
 | `backend/src/main/java/com/exportflow/exporttasks/domain/ExportField.java` | 新增 | 领域：九字段枚举，中文列名与默认序列；无POI依赖 | [T-026](tasks.md#实施与测试任务)；TC-216 |
@@ -962,21 +945,15 @@
 | `backend/mvnw.cmd` | 新增 | 配置／资源／说明：官方Maven Wrapper Windows入口；无自有函数；无自有业务函数 | [T-024](tasks.md#实施与测试任务)；TC-213、TC-226 |
 | `backend/.mvn/wrapper/maven-wrapper.properties` | 新增 | 配置／资源／说明：Maven3.9.16发行包地址与校验；下载时核验官方摘要；无自有业务函数 | [T-024](tasks.md#实施与测试任务)；TC-213、TC-226 |
 | `backend/src/main/resources/application.yml` | 修改占位 | 配置／资源／说明：环境变量注入DB/MQ，UTC/严格SQL，consumer关闭，独立dispatch/timeout线程与获批参数；不提交凭据；无自有业务函数 | [T-024](tasks.md#实施与测试任务)、[T-027](tasks.md#实施与测试任务)；TC-213、TC-226 |
-| `backend/src/main/resources/db/migration/V1__create_orders.sql` | 新增 | 配置／资源／说明：InnoDB/utf8mb4/UTC/orders字段和索引，精确匹配排序规则；仅增量建表；无自有业务函数 | [T-024](tasks.md#实施与测试任务)；TC-213、TC-226 |
+| `backend/src/main/resources/db/migration/V1__reuse_provided_orders.sql` | 新增 | 配置／资源／说明：只读orders视图直接引用exportflow.orders，金额／渠道／地区字段映射；不创建或初始化订单表；无自有业务函数 | [T-024](tasks.md#实施与测试任务)；TC-213、TC-226 |
 | `backend/src/main/resources/db/migration/V2__create_export_tasks_and_outbox.sql` | 新增 | 配置／资源／说明：任务/选择/幂等/Outbox/attempt表，FK/unique/check/调度索引；不含候选暂停断点；无自有业务函数 | [T-024](tasks.md#实施与测试任务)；TC-213、TC-226 |
 | `backend/src/main/resources/db/migration/V3__create_task_execution.sql` | 新增；架构决策已确认 | 配置／资源：task_execution字段包括owner/fence/lease/attempt/recoveryCount/nextRecoveryAt/maxAttemptAt；架构已确认，实施仍受两次门禁，无函数 | [T-029](tasks.md#实施与测试任务)；TC-213、TC-226 |
-| `backend/src/main/resources/db/migration/README.md` | 修改 | 配置／资源／说明：迁移空库、升级、只前进回退与引用规格说明；无自有业务函数 | [T-024](tasks.md#实施与测试任务)；TC-213、TC-226 |
 | `backend/src/main/resources/mappers/OrderMapper.xml` | 新增 | 配置／资源／说明：count/findPage/countExisting、共享筛选片段，LIKE转义，稳定两列排序，值全参数化；无自有业务函数；新增readBatch/SELECTED JOIN/FILTERED共享片段/keyset游标 | [T-025](tasks.md#实施与测试任务)、[T-032](tasks.md#实施与测试任务)；TC-213、TC-215、TC-230、TC-235 |
 | `backend/src/main/resources/mappers/ExportTaskMapper.xml` | 新增 | 配置／资源／说明：任务/关联/幂等/摘要/锁定/条件超时失败 SQL，statement与方法一一对应；无自有业务函数 | [T-026](tasks.md#实施与测试任务)、[T-028](tasks.md#实施与测试任务)；TC-213、TC-226 |
 | `backend/src/main/resources/mappers/CommandOutboxMapper.xml` | 新增 | 配置／资源／说明：候选扫描/锁/DB时间/领取/attempt/标记/关闭，固定锁序；无函数，SQL见模型谓词；无自有业务函数 | [T-027](tasks.md#实施与测试任务)、[T-028](tasks.md#实施与测试任务)；TC-213、TC-226 |
 | `backend/src/main/resources/mappers/TaskExecutionMapper.xml` | 新增；架构决策已确认 | 配置／资源／说明：owner/fence/lease/version 条件更新，不存在恢复扫描或永久锁；无自有业务函数 | [T-029](tasks.md#实施与测试任务)；TC-213、TC-226 |
-| `scripts/seed-orders.ps1` | 新增 | 配置／资源／说明：固定种子、数量参数110000/200001、schema白名单、--help/非零退出；Java21源文件模式启动独立JDBC初始化入口，核对固定算法已有数据，不覆盖 | [T-025](tasks.md#实施与测试任务)；TC-213、TC-215 |
-| `backend/tools/SeedOrders.java` | 新增（生产实施阶段） | 工具入口：Java21/JDBC PreparedStatement有界合成数据初始化；嵌套SeedOutcome/OrderSeedRow，非应用自动启动逻辑 | [T-025](tasks.md#实施与测试任务)；TC-215 |
 | `scripts/check-order-performance.ps1` | 新增 | 配置／资源／说明：固定场景、预热样本、原始耗时/百分位、环境摘要；不连接生产或示例schema | [T-030](tasks.md#实施与测试任务)；TC-213、TC-226 |
 | `tests/backend/pom.xml` | 新增（仅测试准备） | 配置／资源／说明：与正式工程分离的Maven测试harness；运行测试工具/SQL夹具，生产集成缺口如实登记；无自有业务函数 | [T-010](tasks.md#实施与测试任务)；TC-213、TC-226 |
-| `tests/fixtures/orders.sql` | 新增（仅测试） | 配置／资源／说明：小规模合成边界数据；不替代正式迁移证据；无自有业务函数 | [T-010](tasks.md#实施与测试任务)；TC-213、TC-226 |
-| `tests/fixtures/outbox.sql` | 新增（仅测试） | 配置／资源／说明：调度/到期/凭据/坏记录夹具；不复制生产实现；无自有业务函数 | [T-010](tasks.md#实施与测试任务)；TC-213、TC-226 |
-| `tests/fixtures/export-requests.json` | 新增（仅测试） | 配置／资源／说明：规范化等价与不同有序字段的契约样本，不含真实个人信息；无自有业务函数 | [T-010](tasks.md#实施与测试任务)；TC-213、TC-226 |
 | `README.md` | 修改 | 配置／资源／说明：实施后更新实际启动命令、规格链接和真实消费／Excel生成／下载边界；本次仅新增规格索引；无自有业务函数 | [T-031](tasks.md#实施与测试任务)；TC-213、TC-226 |
 | `frontend/README.md` | 修改（实施后） | 配置／资源／说明：新增查询/创建成功反馈说明、依赖版本、测试命令，不把静态规格改为新审批；无自有业务函数 | [T-031](tasks.md#实施与测试任务)；TC-213、TC-226 |
 | `backend/README.md` | 修改（实施后） | 配置／资源／说明：可运行后端、角色开关、凭据/资源隔离、真实投递与真实Excel边界；无自有业务函数 | [T-031](tasks.md#实施与测试任务)；TC-213、TC-226 |
@@ -1006,6 +983,7 @@
 | `docs/validation/002-order-management/red-results.md` | 新增（执行后） | 证据：保留对应红灯/绿灯/缺口/度量原始样本/页面截图；本次不预造证据，无函数 | [T-017](tasks.md#实施与测试任务)、[T-030](tasks.md#实施与测试任务)；TC-226–TC-229 |
 | `docs/validation/002-order-management/green-results.md` | 新增（执行后） | 证据：保留对应红灯/绿灯/缺口/度量原始样本/页面截图；本次不预造证据，无函数 | [T-017](tasks.md#实施与测试任务)、[T-030](tasks.md#实施与测试任务)；TC-226–TC-229 |
 | `docs/validation/002-order-management/coverage-gaps.md` | 新增（执行后） | 证据：保留对应红灯/绿灯/缺口/度量原始样本/页面截图；本次不预造证据，无函数 | [T-017](tasks.md#实施与测试任务)、[T-030](tasks.md#实施与测试任务)；TC-226–TC-229 |
+| `docs/validation/002-order-management/api-implementation.md` | 新增（实施后） | 统一API及占位清理的实际范围、先失败后修正证据、类型检查及未完成项；无函数 | [T-020](tasks.md#实施与测试任务)、[T-021](tasks.md#实施与测试任务)、[T-022](tasks.md#实施与测试任务)、[T-023](tasks.md#实施与测试任务)；TC-210/211/212 |
 | `docs/validation/002-order-management/performance.json` | 新增（执行后） | 证据：保留对应红灯/绿灯/缺口/度量原始样本/页面截图；本次不预造证据，无函数 | [T-017](tasks.md#实施与测试任务)、[T-030](tasks.md#实施与测试任务)；TC-226–TC-229 |
 | `docs/validation/002-order-management/orders-1280x720.png` | 新增（执行后） | 证据：保留对应红灯/绿灯/缺口/度量原始样本/页面截图；本次不预造证据，无函数 | [T-017](tasks.md#实施与测试任务)、[T-030](tasks.md#实施与测试任务)；TC-226–TC-229 |
 | `frontend/src/app/router.tsx` | 复用 | 既有模块：createAppRouter：复用固定/订单/任务/404路由，无签名变更 | [T-021](tasks.md#实施与测试任务)、[T-023](tasks.md#实施与测试任务)；TC-212、TC-226 |
@@ -1017,11 +995,9 @@
 | `frontend/src/shared/styles/global.css` | 复用 | 既有模块：无函数：复用基础布局与设计令牌；局部通过Ant Design组件布局 | [T-021](tasks.md#实施与测试任务)、[T-023](tasks.md#实施与测试任务)；TC-212、TC-226 |
 | `backend/src/main/java/com/exportflow/exporttasks/application/DownloadExportFileService.java` | 修改占位；本期实现 | 应用：短事务读权威成功引用，流式下载前释放事务 | [T-034](tasks.md#实施与测试任务)；TC-234 |
 | `backend/src/main/java/com/exportflow/exporttasks/port/ExportFileStorage.java` | 修改占位；本期实现 | 文件端口：安全路径/块/工作区/不可变产物/下载；Excel内容只由校验器验证；READY查询与登记直接由ArtifactRepository承担，不建立转发方法，文件操作不得携带DB长事务 | [T-033](tasks.md#实施与测试任务)；TC-230、TC-234、TC-235、TC-236 |
-| `backend/src/main/java/com/exportflow/exporttasks/port/ExportProgressCache.java` | 后续；本次保留占位 | 仅边界说明：Redis缓存参数和通知契约后实施；无本期函数，不被运行链导入 | 后续规格；本期不验收 |
-| `backend/src/main/java/com/exportflow/exporttasks/infrastructure/cache/RedisExportProgressCache.java` | 后续；本次保留占位 | 仅边界说明：Redis7.4兼容与TTL/版本后实施；无本期函数，不被运行链导入 | 后续规格；本期不验收 |
+| `backend/src/main/java/com/exportflow/exporttasks/port/ExportProgressCache.java` | 删除无用占位 | Redis进度端口由未来任务规格定义，本期无调用方 | 后续规格；本期不验收 |
+| `backend/src/main/java/com/exportflow/exporttasks/infrastructure/cache/RedisExportProgressCache.java` | 删除无用占位 | Redis进度适配由未来任务规格定义，本期无调用方 | 后续规格；本期不验收 |
 | `backend/src/main/java/com/exportflow/exporttasks/infrastructure/file/LocalExportFileStorage.java` | 修改占位；本期实现 | 文件适配：安全根目录、Windows路径/reparse保护、force/原子移动；不包装数据库产物查询或登记 | [T-033](tasks.md#实施与测试任务)；TC-230、TC-234、TC-235、TC-236 |
-| `frontend/src/features/export-tasks/hooks/use-export-tasks.ts` | 后续；本次保留占位 | 仅边界说明：完整任务列表及SSE生命周期另规格；无本期函数，不被运行链导入 | 后续规格；本期不验收 |
-| `frontend/src/features/export-tasks/components/export-task-table.tsx` | 后续；本次保留占位 | 仅边界说明：完整任务表格另规格；无本期函数，不被运行链导入 | 后续规格；本期不验收 |
 | `backend/src/main/java/com/exportflow/worker/infrastructure/persistence/ExecutionLeaseRecord.java` | 新增；架构决策已确认 | 记录类型：执行权数据库字段见模型；与领域ExecutionLease独立，无业务函数 | [T-029](tasks.md#实施与测试任务)；TC-224 |
 | `backend/src/main/java/com/exportflow/exporttasks/domain/ExportFileModels.java` | 新增 | 类型：StorageRef/AttemptWorkspace/StagingWorkbook/ValidatedWorkbook/DownloadHandle/DownloadMetadata 设计见模型；机械字段访问无函数 | [T-033](tasks.md#实施与测试任务)；TC-234 |
 | `backend/src/main/java/com/exportflow/worker/port/CheckpointRepository.java` | 新增；架构决策已确认 | 端口：持久数据块与游标/进度版本的一致提交 | [T-032](tasks.md#实施与测试任务)；TC-232、TC-235 |
@@ -1058,3 +1034,121 @@
 - 相同方法在端口与实现中各列一项；就绪/断点/终态事务不能拆分。数据块登记同时推进持久进度，不再另建进度回调或重复核对链。
 - 真实POI/file适配本期实施；Redis/SSE和完整任务页面保留注释占位；用户暂停、显式恢复、跨主机存储另规格。
 - 依赖准确版本、执行恢复子集和参数已定稿，见[版本表](dependency-versions.md)与[决策记录](decision-record.md)；具体代码生成仍受规格及测试阶段审批约束。框架内部函数不展开；脚本若需要额外自有拆分，先补清单。
+
+## 测试先行阶段新增的辅助文件
+
+2026-10-11规格获批后的测试落地记录；生产边界和公开签名不变。Outbox记录改由真实创建API生成并由测试SQL设置故障窗口，不再维护独立outbox.sql夹具。
+
+| 文件 | 阶段 | 职责 | 追踪 |
+| --- | --- | --- | --- |
+| `tests/README.md` | 新增（仅测试阶段） | 测试设施说明；无函数 | [T-010](tasks.md#实施与测试任务)；TC-213 |
+| `frontend/src/test/runtime.test.ts` | 新增（仅测试阶段） | 真实验证MSW Node拦截GET/POST，工具检查不替代业务验收 | [T-010](tasks.md#实施与测试任务)；TC-201、TC-210 |
+| `frontend/src/features/orders/__tests__/order-export-state.test.tsx` | 新增（仅测试阶段） | 从组件测试拆出冻结提交、UNKNOWN同键核对及页面反馈抛错隔离；不新增生产签名 | [T-012](tasks.md#实施与测试任务)；TC-209、TC-210 |
+| `frontend/src/features/orders/__tests__/order-api.test.ts` | 新增（仅测试阶段） | HTTP十秒超时、取消/释放、受控同源路径、创建响应校验、字符串ID及安全错误；仅使用已定生产签名 | [T-011](tasks.md#实施与测试任务)、[T-012](tasks.md#实施与测试任务)；TC-210、TC-211 |
+| `tests/backend/src/test/java/com/exportflow/testing/SharedServices.java` | 新增（仅测试阶段） | 复用既有服务，每用例创建并回收专属schema/vhost/账号；AMQP故障只影响测试socket | [T-010](tasks.md#实施与测试任务)；TC-213 |
+| `tests/backend/src/test/java/com/exportflow/testing/TestEnvironmentTest.java` | 新增（仅测试阶段） | 真实隔离服务、SKIP LOCKED、确认重交付、文件原子移动与回环HTTP检查 | [T-010](tasks.md#实施与测试任务)；TC-213 |
+| `tests/backend/src/test/java/com/exportflow/testing/ProductionBackendFixture.java` | 新增（仅测试阶段） | 真实入口/资源/HTTP/JDBC测试装配；缺失入口逐项skipped，不实现业务替身 | [T-010](tasks.md#实施与测试任务)；TC-213至TC-236 |
+| `tests/backend/src/test/java/com/exportflow/testing/CommitFaults.java` | 新增（仅测试阶段） | 在真实创建事务提交之后注入驱动异常或回读不可用，不伪造数据库结果 | [T-014](tasks.md#实施与测试任务)；TC-218 |
+| `tests/backend/src/test/java/com/exportflow/testing/WorkerFaultBarrierMain.java` | 新增（仅测试阶段） | 测试子进程包装真实端口/算法组件，在指定调用前后及第N次边界停在屏障供父进程kill | [T-019](tasks.md#实施与测试任务)；TC-235 |
+| `docs/validation/002-order-management/test-summary.json` | 新增（仅测试阶段） | 实际报告生成的小型计数、命令及阻塞摘要；无函数 | [T-017](tasks.md#实施与测试任务)；TC-229 |
+
+辅助函数由测试使用，生产代码不得依赖：
+
+| 文件／签名 | 中文职责、流程与调用 |
+| --- | --- |
+| `SharedServices.mysql(): Mysql；rabbit(): Rabbit（无参数）` | 构造共享服务隔离资源句柄，start/close创建与回收本次资源；不启动或停止容器。 |
+| `ProductionBackendFixture.startProduction(): void throws Exception；closeProduction(): void throws Exception（无参数）` | 每个用例分别加载真实入口并装配共享服务内独立schema/vhost/账号/目录；缺失入口直接通过JUnit assumption报告skipped；结束或启动中途失败均释放已创建的上下文、HTTP客户端与本次测试资源，避免未ACK消息及故障跨用例残留。 |
+| `ProductionBackendFixture.get(path:String): HttpResponse<String>；post(body:String,key:String?): HttpResponse<String>` | 发送真实HTTP；调用JDK HttpClient；不模拟服务端返回。 |
+| `ProductionBackendFixture.body(response:HttpResponse<String>): JsonNode；newKey():String（无参数）` | 仅解析测试响应或生成测试UUID，不承担业务规范化。 |
+| `ProductionBackendFixture.selectProvidedOrders():void throws Exception；useOrderVolume(count:int):void throws Exception` | 只读视图限定既有订单ID范围，不复制或改写来源；规模不足按负责人要求记录数据缺口，不造数。 |
+| `ProductionBackendFixture.filtered():String；create():UUID；createVolume():UUID（无参数，后两者throws Exception）` | 构造测试请求并调用真实POST；返回实际任务身份，不创建内存任务。 |
+| `ProductionBackendFixture.call(beanClass:String,method:String,args:Object...):Object throws Exception；state(task:UUID):String；count(table:String):long` | 按获批签名调用真实Bean，直接读取隔离库观察断言；表名限定白名单。 |
+| `ProductionBackendFixture.awaitSuccess(task:UUID):void；download(task:UUID):byte[] throws Exception` | 手动触发真实投递后有界等待权威成功，核验真实HTTP文件流及头；不将轮询注册进产品。 |
+| `ProductionBackendFixture.startWorker(barrier:boolean):Process throws Exception；stopWorker(worker:Process):void throws Exception` | 启动独立512MB测试Worker，必要时加载测试屏障；有界结束自己创建的进程，保留合成诊断。 |
+| `ProductionBackendFixture.consumerEnabled():boolean；testFaults():BeanPostProcessor?（无参数）` | 测试子类选择实际消费角色和故障装配；默认关闭消费者、无故障；不修改生产默认角色。 |
+| `CommitFaults.arm(blockReconciliation:boolean):void；restore():void；triggeredCount():int（后两者无参数）；postProcessAfterInitialization(bean:Object,name:String):Object` | 只包装测试上下文DataSource，在真实写任务事务commit成功后抛异常并计数；测试必须断言实际触发一次，恢复连接不删除已提交任务。 |
+| `WorkerFaultBarrierMain.main(args:String[]):void throws Exception` | 启动真实后端并包装所选端口/算法Bean；指定实际调用前后写屏障标记并阻塞，commitBlock/registerReady/complete成功屏障只接受APPLIED，父进程负责强制结束；不实现业务断点。 |
+
+测试框架回调和机械访问器不展开。实际代码与未覆盖子场景见[首轮结果](../../docs/validation/002-order-management/red-results.md)和[缺口](../../docs/validation/002-order-management/coverage-gaps.md)。
+
+## 本轮场景补充文件与函数
+
+2026-10-11，测试证据0.4-test-03；以下全部是已授权的测试及证据整理，生产签名与协议不变。具体覆盖见[补充对照](../../docs/validation/002-order-management/scenario-completion.md)。
+
+| 文件 | 变动与阶段 | 职责 | 追踪 |
+| --- | --- | --- | --- |
+| `backend/src/test/java/com/exportflow/RuntimeCapabilityTest.java` | 新增（仅测试阶段） | 启动文件/atomic能力、真实broker超时、DB时间和消费停机 | [T-013](tasks.md#实施与测试任务)、[T-016](tasks.md#实施与测试任务)；TC-213、TC-224、TC-225 |
+| `backend/src/test/java/com/exportflow/RuntimeSecurityTest.java` | 新增（仅测试阶段） | 真实runtime账户/约束、容器ACK配置、查询/创建/生成日志保护 | [T-013](tasks.md#实施与测试任务)、[T-016](tasks.md#实施与测试任务)；TC-213、TC-214、TC-223 |
+| `backend/src/test/java/com/exportflow/dispatch/BrokerPolicyBoundaryTest.java` | 新增（仅测试阶段） | 真实broker策略/绑定/队列属性/容量恢复与精确消息属性 | [T-015](tasks.md#实施与测试任务)；TC-220 |
+| `backend/src/test/java/com/exportflow/dispatch/DispatchSchedulingTest.java` | 新增（仅测试阶段） | 启用真实独立5秒扫描与重启先扫到期 | [T-015](tasks.md#实施与测试任务)；TC-222 |
+| `backend/src/test/java/com/exportflow/dispatch/OutboxDeadlineRaceTest.java` | 新增（仅测试阶段） | 屏障控制claim/SENT/timeout两种先后及终态无补投 | [T-015](tasks.md#实施与测试任务)；TC-221、TC-222 |
+| `backend/src/test/java/com/exportflow/dispatch/OutboxFailureWindowsTest.java` | 新增（仅测试阶段） | 真实领取kill、退避、并发、SENT不明、共享/单条故障 | [T-015](tasks.md#实施与测试任务)；TC-220、TC-221 |
+| `backend/src/test/java/com/exportflow/dispatch/PublisherCorrelationTest.java` | 新增（仅测试阶段） | Spring同correlation的return/confirm/断连故障 | [T-015](tasks.md#实施与测试任务)；TC-220 |
+| `backend/src/test/java/com/exportflow/exporttasks/CreationAsyncBoundaryTest.java` | 新增（仅测试阶段） | 真实MQ停机/生成屏障下HTTP异步受理与恢复 | [T-014](tasks.md#实施与测试任务)；TC-218、TC-228 |
+| `backend/src/test/java/com/exportflow/exporttasks/CreationInputBoundaryTest.java` | 新增（仅测试阶段） | 创建输入/精确字节边界、关联/幂等回滚和并发摘要 | [T-014](tasks.md#实施与测试任务)；TC-214、TC-216至TC-218 |
+| `backend/src/test/java/com/exportflow/orders/ApiPerformanceTest.java` | 新增（仅测试阶段） | 固定种子查询/创建预热采样、P95、真实MQ故障与原始JSON | [T-017](tasks.md#实施与测试任务)、[T-030](tasks.md#实施与测试任务)；TC-227、TC-228 |
+| `backend/src/test/java/com/exportflow/orders/OrderQueryBoundaryTest.java` | 新增（仅测试阶段） | 真实分页/单边筛选/全部枚举/literal/DTO类型 | [T-013](tasks.md#实施与测试任务)；TC-214、TC-215 |
+| `backend/src/test/java/com/exportflow/worker/ArtifactCleanupConcurrencyTest.java` | 新增（仅测试阶段） | 真实行锁竞争、许可/token、批上限、grace及崩溃scratch保护 | [T-019](tasks.md#实施与测试任务)；TC-236 |
+| `backend/src/test/java/com/exportflow/worker/BadCommandIsolationTest.java` | 新增（仅测试阶段） | 真实坏交付停止槽、告警和未ACK原字节保留 | [T-016](tasks.md#实施与测试任务)；TC-223 |
+| `backend/src/test/java/com/exportflow/worker/DownloadBoundaryTest.java` | 新增（仅测试阶段） | 真实状态/IO/大小/路径/重启/句柄自动关闭及HTTP断连 | [T-018](tasks.md#实施与测试任务)；TC-234 |
+| `backend/src/test/java/com/exportflow/worker/DurabilityGuardTest.java` | 新增（仅测试阶段） | 旧版本/fence、无安全重做证明、READY不明、高水位与耗尽ACK顺序 | [T-019](tasks.md#实施与测试任务)；TC-224、TC-235 |
+| `backend/src/test/java/com/exportflow/worker/ExcelBoundaryTest.java` | 新增（仅测试阶段） | 真实flush、事务释放、源批读/进度、关闭与磁盘故障 | [T-018](tasks.md#实施与测试任务)；TC-230至TC-233 |
+| `backend/src/test/java/com/exportflow/worker/ExcelPerformanceTest.java` | 新增（仅测试阶段） | 正常调度/监督下两数据量各5次、计时/等待/堆/scratch原样本 | [T-018](tasks.md#实施与测试任务)、[T-030](tasks.md#实施与测试任务)；TC-230、TC-231 |
+| `backend/src/test/java/com/exportflow/worker/ExcelValidationBoundaryTest.java` | 新增（仅测试阶段） | 实际坏Excel、字符/字节预算、force/move和资源/源变化故障 | [T-018](tasks.md#实施与测试任务)；TC-230、TC-231、TC-233、TC-235 |
+| `backend/src/test/java/com/exportflow/worker/ExecutionSupervisionTest.java` | 新增（仅测试阶段） | 真实监督器5秒认领、heartbeat、attempt和15秒停机 | [T-016](tasks.md#实施与测试任务)；TC-224、TC-225 |
+| `backend/src/test/java/com/exportflow/worker/RecoveryFailureWindowsTest.java` | 新增（仅测试阶段） | 真实持久窗口kill、块/READY破坏、UNKNOWN保护及接管持久状态 | [T-019](tasks.md#实施与测试任务)；TC-235 |
+| `backend/src/test/java/com/exportflow/worker/WorkerFailureWindowsTest.java` | 新增（仅测试阶段） | 认领/终态提交不明、生成分支、失权、坏消息与启动能力 | [T-016](tasks.md#实施与测试任务)；TC-223至TC-225 |
+| `docs/validation/002-order-management/browser-checklist.md` | 新增（仅测试阶段） | Chrome/Edge14项逐步操作、期望及实际环境/证据空表；无函数 | [T-017](tasks.md#实施与测试任务)、[T-030](tasks.md#实施与测试任务)；TC-226、TC-234 |
+| `docs/validation/002-order-management/coverage-audit.md` | 新增（仅测试阶段） | 保留0.4-test-02审计基线，链接最新补充对照；无函数 | [T-017](tasks.md#实施与测试任务)；TC-201至TC-236 |
+| `docs/validation/002-order-management/scenario-completion.md` | 新增（仅测试阶段） | 34组场景及8组断言与具体源码/阻塞双向对照；无函数 | [T-017](tasks.md#实施与测试任务)；TC-201至TC-236 |
+| `frontend/src/features/orders/__tests__/order-boundaries.test.tsx` | 新增（仅测试阶段） | 页面组合、URL恢复、跨页提交、冻结/焦点、取消组合、响应分类和日志边界 | [T-011](tasks.md#实施与测试任务)、[T-012](tasks.md#实施与测试任务)；TC-202至TC-211、TC-226 |
+| `tests/backend/src/test/java/com/exportflow/testing/BoundaryFixture.java` | 新增（仅测试阶段） | 真实端口/执行上下文、领取窗口、权威DB读取和ACK观察辅助 | [T-010](tasks.md#实施与测试任务)；TC-220至TC-236 |
+| `tests/backend/src/test/java/com/exportflow/testing/BoundaryProbe.java` | 新增（仅测试阶段） | 仅测试探针、反射既有record、真实调用委托和有界双向屏障 | [T-010](tasks.md#实施与测试任务)；TC-220至TC-236 |
+| `tests/backend/src/test/java/com/exportflow/testing/WorkerSampledMain.java` | 新增（仅测试阶段） | 独立真实Worker进程50ms堆采样；不实现任何业务算法 | [T-018](tasks.md#实施与测试任务)；TC-231 |
+
+辅助函数均不供生产依赖；测试入口的条件、数据、故障和断言以源码及补充对照为准。
+
+| 类型化签名 | 中文目的、流程与调用 |
+| --- | --- |
+| `BoundaryProbe.on(port:String,method:String,hook:Hook):void；clear():void；calls(port:String,method:String):int` | 登记困难故障/观察挂钩；默认Proceed.run():Object调用真实Bean，清除只去挂钩不重置调用证据。 |
+| `BoundaryProbe.postProcessAfterInitialization(bean:Object,name:String):Object` | JDK代理真实端口；测试专用Mockito委托包装真实Assembler/Validator/Codec；不实现任何领域算法。 |
+| `BoundaryProbe.property(value:Object,name:String):Object；record(type:Class<?>,values:Map<String,?>):Object；copy(original:Object,changes:Map<String,?>):Object；method(port:String,name:String):Method` | 仅反射获批且已存在的类型，检查字段及方法；构造异常保留实际原因。enumValue(type:Class<?>,value:String):Object匹配现有枚举。 |
+| `BoundaryProbe.Gate.pause():void；await():void；close():void` | CountDownLatch双向屏障，有界进入/释放；退出资源先放行再结束执行器，避免失败后死锁。 |
+| `BoundaryFixture.claim(task:UUID,owner:String):Object；lease(task:UUID):Object；snapshot(task:UUID):Object；context(task:UUID,lease:Object):Object；guard(valid:boolean):Object；generate(task:UUID,lease:Object):Object` | 经真实端口/服务申请和观察执行权，按既定record构造上下文；guard测试替身只控制困难失权窗口。 |
+| `BoundaryFixture.reserve(task:UUID):Object；evidence():Object；failure(code:String):Object；unknown():Object；outbox(task:UUID):Map<String,Object>；expireExecution(task:UUID):void；noAck(channel:Channel):void` | 真实领取事务后截住发布，构造已定故障结果/证据、观察实际DB或ACK；不伪造数据库及broker。 |
+| `ProductionBackendFixture.startApplication(entry:Class<?>):void；restartApplication():void；schedulingEnabled():boolean；databaseUsername():String；databasePassword():String；applicationArguments():List<String>` | 同一测试服务与目录重启真实应用，不重seed；默认手动调度，调度/异步/性能用例启用正常调度。runtime权限用例可切换真实受限身份。 |
+| `ProductionBackendFixture.port(portClass:String,method:String,args:Object...):Object；brokerConnection():Connection；command(task:UUID):byte[]；creationCounts():Map<String,Long>；startWorker(barriers:List<String>):Process` | 经公开端口及真实broker观察；按DB原event构造测试命令；启动真实512MB子进程的屏障/采样测试入口。 |
+| `WorkerFaultBarrierMain.main(args:String[]):void；WorkerSampledMain.main(args:String[]):void` | 前者按真实调用前/后及第N次边界标记后暂停供kill，后者50ms采集本进程实际堆并原子写报告；两者均启动正式Spring入口。 |
+| `order-boundaries.mount(search:string):UserEvent；loaded():Promise<void>；open(user:UserEvent,selected:boolean):Promise<HTMLElement>；gets()/posts():RecordedRequest[]` | 挂载真实页面/路由/Provider，借MSW观察HTTP；不实现页面状态机，测试回调按各参数化场景操作。 |
+| `ApiPerformanceTest.measure(name:String,request:Request,records:List<Map<String,Object>>):void；Request.send():HttpResponse<String>` | 真实HTTP预热30次、采样200次，完整响应计时，nearest-rank P95，保留原样本及状态。 |
+| `ExcelPerformanceTest.TC230_TC231_fiveSerialFullPipelineRunsWithHeapAndScratchSamples(count:int):void` | 正常consumer/dispatcher/监督下串行5次，从生成入口至实际成功提交计时，另记等待、50ms堆采样与scratch/文件检查。 |
+| `DownloadBoundaryTest.complete():UUID；tracked(handle:Object,closed:AtomicBoolean,beforeRead:Consumer<Integer>):Object` | 创建真实成功结果；装饰原输入流观察资源释放/读取事务并控制HTTP断连窗口，不替代真实文件。 |
+| `BrokerPolicyBoundaryTest.refuses():void；ExcelContentTest.enumCases():Stream<Arguments>` | 分别核对真实坏策略拒绝并告警、生成五状态×四渠道合成枚举参数，不新增枚举或生产展示值。 |
+
+新增JUnit测试方法的参数/返回值与任务归属：
+
+| 测试文件 | 入口签名（均返回void、throws Exception） | 调用及目的 |
+| --- | --- | --- |
+| [RuntimeCapabilityTest.java](../../backend/src/test/java/com/exportflow/RuntimeCapabilityTest.java) | `TC225_unusableRealFileRootRejectsConsumerStartupBeforeClaim()`；`TC225_atomicMoveCapabilityFailureRejectsStartupBeforeClaim()`；`TC224_realBrokerAckTimeoutIsIndependentOfClaimMonitor()`；`TC224_databaseAuthorityIgnoresStaleHostLeaseTimestamp()`；`TC224_shutdownStopsActualConsumerAndDoesNotClaimNewMessages()` | 真实端口及测试夹具；启动文件/atomic能力、真实broker超时、DB时间和消费停机 |
+| [RuntimeSecurityTest.java](../../backend/src/test/java/com/exportflow/RuntimeSecurityTest.java) | `TC213_runtimeRoleCannotWriteOrdersOrDdlAndMigratorIsSeparate()`；`TC213_databaseRejectsInvalidCountsAndCascadingRemovalOfPermanentReferences()`；`TC214_queryAndCreationNeverLogSyntheticCustomerKeyOrPhysicalPath(CapturedOutput output)`；`TC213_disabledConsumerHasRegisteredStoppedContainersAndBoundedManualAck()`；`TC223_generationDiagnosticsNeverLogPrivateValuesPayloadKeyOrPhysicalRoot(CapturedOutput output)` | 真实端口及测试夹具；真实runtime账户/约束、容器ACK配置、查询/创建/生成日志保护 |
+| [BrokerPolicyBoundaryTest.java](../../backend/src/test/java/com/exportflow/dispatch/BrokerPolicyBoundaryTest.java) | `TC220_effectiveQueueAndOperatorPoliciesAreRecheckedAtRuntime(String type,String payload)`；`TC220_extraBindingCannotProveUniqueCorrectTarget()`；`TC220_managementUnreadableNeverPretendsPolicyIsVerified()`；`TC220_ephemeralQueueCannotBeMarkedReliable(boolean durable,boolean exclusive,boolean autoDelete)`；`TC220_capacityRecoveryRetriesSameEventAndOriginalMessagePropertiesAreExact()` | 真实端口及测试夹具；真实broker策略/绑定/队列属性/容量恢复与精确消息属性 |
+| [DispatchSchedulingTest.java](../../backend/src/test/java/com/exportflow/dispatch/DispatchSchedulingTest.java) | `TC222_realFiveSecondIndependentScanWorksEvenWhilePublisherIsBlocked()`；`TC222_restartScansAlreadyExpiredBeforePublishingWithoutResettingDeadline()` | 真实端口及测试夹具；启用真实独立5秒扫描与重启先扫到期 |
+| [OutboxDeadlineRaceTest.java](../../backend/src/test/java/com/exportflow/dispatch/OutboxDeadlineRaceTest.java) | `TC222_timeoutWinsAgainstLateSentOrClaim(String operation)`；`TC222_committedSentOrClaimWinsAgainstTimeout(String operation)`；`TC222_unsentTerminalClosesOriginalOutboxWithoutAnyPublish(String terminal)` | 真实端口及测试夹具；屏障控制claim/SENT/timeout两种先后及终态无补投 |
+| [OutboxFailureWindowsTest.java](../../backend/src/test/java/com/exportflow/dispatch/OutboxFailureWindowsTest.java) | `TC221_claimCrashKeepsAttemptAndRequiresBothLeaseAndCrashBackoff()`；`TC221_twoDispatchersPublishOriginalCommandOnce()`；`TC221_confirmedPublishWithLostSentWriteNeverImmediatelyRepublishes(boolean unreadable)`；`TC221_failedSentWriteBeforeCommitRetriesMarkWithEvidenceInsteadOfPublish()`；`TC221_brokerUnavailableRetainsTaskAndOriginalCommandThenRecoveryDelivers()`；`TC221_singleSerializationFailureIsIsolatedFromGoodRecord()`；`TC221_sharedBrokerFailureStopsBatchAndUnreadableDatabaseDoesNotWriteInventedState()`；`TC221_realProcessKillAfterClaimPreservesAttemptAndCrashBackoffAcrossRestart()` | 真实端口及测试夹具；真实领取kill、退避、并发、SENT不明、共享/单条故障 |
+| [PublisherCorrelationTest.java](../../backend/src/test/java/com/exportflow/dispatch/PublisherCorrelationTest.java) | `TC220_confirmAndReturnUseSameSpringCorrelationAndNeverMarkSentOnIncompleteProof(String mode)` | 真实端口及测试夹具；Spring同correlation的return/confirm/断连故障 |
+| [CreationAsyncBoundaryTest.java](../../backend/src/test/java/com/exportflow/exporttasks/CreationAsyncBoundaryTest.java) | `TC218_httpCommitsWithoutWaitingForBlockedRealGenerator()`；`TC218_httpAcceptsDuringRealBrokerOutageAndOriginalOutboxResumes()` | 真实端口及测试夹具；真实MQ停机/生成屏障下HTTP异步受理与恢复 |
+| [CreationInputBoundaryTest.java](../../backend/src/test/java/com/exportflow/exporttasks/CreationInputBoundaryTest.java) | `TC214_invalidIdempotencyKeyIsRejectedBeforeAnyCreation(String key)`；`TC214_idempotencyKeyLengthEndpointsAndOneBeyond()`；`TC216_malformedCreateNeverLeavesTaskKeyOutboxOrSelection(String payload)`；`TC216_postFilterIndependentlyValidatesSameConstraints(String filter)`；`TC214_textLengthsAndUtf8BodyBudgetAreExact()`；`TC216_selectedAssociationIsExactDeduplicatedAndFilteredWritesNone()`；`TC218_failureInEveryCreationParticipantRollsBackAllTables(String table)`；`TC217_concurrentDifferentDigestsSameKeyKeepOnlyWinner()`；`TC217_emptyOptionalConditionsCanonicalizeAndOrderNumberCaseDoesNot()` | 真实端口及测试夹具；创建输入/精确字节边界、关联/幂等回滚和并发摘要 |
+| [ApiPerformanceTest.java](../../backend/src/test/java/com/exportflow/orders/ApiPerformanceTest.java) | `TC227_TC228_referenceApiSamplesKeepRawLatenciesAndNearestRankP95()` | 真实端口及测试夹具；固定种子查询/创建预热采样、P95、真实MQ故障与原始JSON |
+| [OrderQueryBoundaryTest.java](../../backend/src/test/java/com/exportflow/orders/OrderQueryBoundaryTest.java) | `TC215_realPagesHaveNoMissingOrRepeatedIds(int size)`；`TC215_eachKeywordFieldEnumsAndSingleSidedBounds(String query,String ids)`；`TC215_backslashIsLiteralAndDtoPreservesLongMoneyAndUtc()`；`TC215_allKnownEnumFiltersReturnOnlyTheirOwnValues(String field,String value)` | 真实端口及测试夹具；真实分页/单边筛选/全部枚举/literal/DTO类型 |
+| [ArtifactCleanupConcurrencyTest.java](../../backend/src/test/java/com/exportflow/worker/ArtifactCleanupConcurrencyTest.java) | `TC236_readyAdoptionAndCleanupCompeteUnderRealDatabaseLocks()`；`TC236_runningCheckpointAndReadySurviveGraceAndExpiredLease()`；`TC236_unregisteredOldStagingRequiresCandidateAndPermitAndBatchLimit()`；`TC236_youngOrphanAndUnknownDatabaseAreNeverDeleted()`；`TC236_cleanupWinnerRejectsStaleTokenAndLateReadyAdoption()`；`TC236_crashedScratchIsProtectedWhileAttemptLivesAndCleanedOnlyAfterStopAndGrace()` | 真实端口及测试夹具；真实行锁竞争、许可/token、批上限、grace及崩溃scratch保护 |
+| [BadCommandIsolationTest.java](../../backend/src/test/java/com/exportflow/worker/BadCommandIsolationTest.java) | `TC223_realBadDeliveryStopsSlotAlertsAndRetainsOriginalUnackedCommand(String defect,CapturedOutput output)` | 真实端口及测试夹具；真实坏交付停止槽、告警和未ACK原字节保留 |
+| [DownloadBoundaryTest.java](../../backend/src/test/java/com/exportflow/worker/DownloadBoundaryTest.java) | `TC234_everyNonSuccessStateRejectsDownload(String state)`；`TC234_downloadDependencyAndMetadataErrorsAreSafe(String defect)`；`TC234_handleFailureAutomaticallyClosesInputAndDoesNotCloseFrameworkOutput()`；`TC234_realHttpDisconnectClosesStreamOutsideTransactionAndKeepsSuccess()`；`TC234_symlinkOrWindowsJunctionCannotEscapeConfiguredRoot()`；`TC234_restartKeepsFileAndOriginalIdempotencyResult()`；`TC234_serverLogicalReferenceRejectsTraversalAndAbsoluteOwnerSegments(String owner)` | 真实端口及测试夹具；真实状态/IO/大小/路径/重启/句柄自动关闭及HTTP断连 |
+| [DurabilityGuardTest.java](../../backend/src/test/java/com/exportflow/worker/DurabilityGuardTest.java) | `TC235_oldCheckpointVersionAndOldFenceCannotWriteBlocksOrProgress()`；`TC235_noTrustedPrefixWithoutSafeRedoProofCannotStartNewGeneration()`；`TC235_readyCommitResponseLostReconcilesSameProofWithoutRegeneration()`；`TC224_budgetExhaustionCommitsSafeFailureAndHighWaterBeforeAck()`；`TC235_rebuildRetainsHighWaterAndReadsFromTrustedCursorRatherThanHighWater()` | 真实端口及测试夹具；旧版本/fence、无安全重做证明、READY不明、高水位与耗尽ACK顺序 |
+| [ExcelBoundaryTest.java](../../backend/src/test/java/com/exportflow/worker/ExcelBoundaryTest.java) | `TC233_projectorRejectsInvalidCellsAndKeepsValidOriginalText(String scenario)`；`TC231_batchFlushReallyWritesCompletedRowsToScratchAndReleasesWindow()`；`TC231_flushFailureAndLostGuardStopBeforeBufferedWrite()`；`TC231_outputCloseFailureStillDisposesOwnScratch()`；`TC230_existingArtifactIsNeverOverwrittenAndFailureDoesNotRegisterReady()`；`TC230_storageFaultNeverMakesHalfFileDownloadable(String operation)`；`TC232_memoryRowsAreNotProgressAndCollectedRowsStay99UntilSuccessFailureKeepsCount()`；`TC233_selectedKeysetBatchesAcrossTimesHaveExactSourceAndReleaseTransactions()`；`TC230_longFilePipelineNeverCarriesDatabaseTransactionOrBorrowedConnection()` | 真实端口及测试夹具；真实flush、事务释放、源批读/进度、关闭与磁盘故障 |
+| [ExcelPerformanceTest.java](../../backend/src/test/java/com/exportflow/worker/ExcelPerformanceTest.java) | `TC230_TC231_fiveSerialFullPipelineRunsWithHeapAndScratchSamples(int count)` | 真实端口及测试夹具；正常调度/监督下两数据量各5次、计时/等待/堆/scratch原样本 |
+| [ExcelValidationBoundaryTest.java](../../backend/src/test/java/com/exportflow/worker/ExcelValidationBoundaryTest.java) | `TC233_realCorruptWorkbookNeverRegistersReady(String defect)`；`TC231_persistenceFaultPreservesTrustedBlocksAndCannotExposePartialFile(String fault)`；`TC231_workbookResourceFailureStillAttemptsAllCloses(String operation)`；`TC230_sourceCountChangedAfterAcceptanceFailsSafely()`；`TC235_blockCodecEnforcesExactUtf8LineBudgetAndWholeBlockBudget()` | 真实端口及测试夹具；实际坏Excel、字符/字节预算、force/move和资源/源变化故障 |
+| [ExecutionSupervisionTest.java](../../backend/src/test/java/com/exportflow/worker/ExecutionSupervisionTest.java) | `TC224_claimTimeoutClosesOnlyStalledPendingDelivery()`；`TC224_claimMonitorDoesNotCloseHealthyRunningAfterFiveSeconds()`；`TC224_heartbeatFailureStopsGuardBeforeAnyNewReadWriteOrTerminal(String outcome)`；`TC224_shutdownStopsGuardAndDoesNotReleaseBlockedExecutor()`；`TC224_expiredAttemptCannotRenewEvenWithValidLease()`；`TC224_realFiveMinuteMonotonicAttemptBudgetStopsHealthyHeartbeatingWork()` | 真实端口及测试夹具；真实监督器5秒认领、heartbeat、attempt和15秒停机 |
+| [RecoveryFailureWindowsTest.java](../../backend/src/test/java/com/exportflow/worker/RecoveryFailureWindowsTest.java) | `TC235_realKillAtEveryDurabilityWindowRecoversSameCommand(String port,String method,String phase)`；`TC235_blockCommitResponseLostIsReconciledWithoutDuplicatingBlocks()`；`TC235_corruptCheckpointNeverSilentlyAdoptsInvalidPrefix(String defect)`；`TC235_temporaryReadFailureKeepsGenerationReferencesAndHighWater()`；`TC235_readyProofMismatchCannotBeAdopted(String field)`；`TC235_concurrentTakeoverChargesOnlyWinnerAndRestartKeepsBudgetAndBackoff()` | 真实端口及测试夹具；真实持久窗口kill、块/READY破坏、UNKNOWN保护及接管持久状态 |
+| [WorkerFailureWindowsTest.java](../../backend/src/test/java/com/exportflow/worker/WorkerFailureWindowsTest.java) | `TC223_databaseUnreadableNeverAcknowledgesOrGenerates()`；`TC225_generatorResultRequiresCommittedTerminalBeforeAck(String kind)`；`TC225_lostTerminalCommitAcknowledgementIsReconciledBeforeAck(boolean unreadable)`；`TC224_claimCommitUnknownCannotGenerateUntilReconciled()`；`TC224_normalRenewExtendsLeaseButOldOwnerCannotCompleteOrRegisterReady()`；`TC223_invalidCommandsCloseAffectedChannelWithoutAckOrImmediateRequeue(String defect)`；`TC225_unavailableGeneratorCannotBeEnabledAtStartup()`；`TC225_terminalWriteFailureBeforeCommitCannotAckOrInventFailure()` | 真实端口及测试夹具；认领/终态提交不明、生成分支、失权、坏消息与启动能力 |
+
+新增[ProvidedOrdersTest](../../backend/src/test/java/com/exportflow/orders/ProvidedOrdersTest.java)核对真实来源、字段映射、视图类型和源写权限；设计见[复用数据](provided-data.md)。

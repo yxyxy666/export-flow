@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 规格 contracts/http-api.md；TC-215验证真实MySQL语义。 -->
+<mapper namespace="com.exportflow.orders.infrastructure.persistence.OrderMapper">
+  <sql id="filter">
+      <if test="filter.orderNo != null">AND order_no COLLATE utf8mb4_bin = #{filter.orderNo}</if>
+      <if test="filter.keyword != null">
+        AND (order_no COLLATE utf8mb4_0900_as_ci LIKE #{filter.literalKeyword} ESCAPE '!'
+        OR customer_name COLLATE utf8mb4_0900_as_ci LIKE #{filter.literalKeyword} ESCAPE '!'
+        OR customer_phone COLLATE utf8mb4_0900_as_ci LIKE #{filter.literalKeyword} ESCAPE '!')
+      </if>
+      <if test="filter.status != null">AND status = #{filter.status}</if>
+      <if test="filter.channel != null">AND channel = #{filter.channel}</if>
+      <if test="filter.createdFrom != null">AND created_at &gt;= #{filter.createdFrom}</if>
+      <if test="filter.createdTo != null">AND created_at &lt;= #{filter.createdTo}</if>
+      <if test="filter.minAmount != null">AND amount &gt;= #{filter.minAmount}</if>
+      <if test="filter.maxAmount != null">AND amount &lt;= #{filter.maxAmount}</if>
+  </sql>
+  <select id="count" resultType="long">SELECT COUNT(*) FROM orders <where><include refid="filter"/></where></select>
+  <select id="findPage" resultType="com.exportflow.orders.infrastructure.persistence.OrderRecord">
+    <bind name="filter" value="query.filter"/>
+    SELECT id,order_no,customer_name,customer_phone,status,channel,amount,currency,region,created_at FROM orders
+    <where><include refid="filter"/></where>
+    ORDER BY created_at <choose><when test="query.sortDirection == 'ASC'">ASC</when><otherwise>DESC</otherwise></choose>,
+    id <choose><when test="query.sortDirection == 'ASC'">ASC</when><otherwise>DESC</otherwise></choose>
+    LIMIT #{query.pageSize} OFFSET #{query.offset}
+  </select>
+  <select id="countExisting" resultType="long">
+    SELECT COUNT(*) FROM orders WHERE id IN <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+  </select>
+  <select id="readBatch" resultType="com.exportflow.orders.infrastructure.persistence.OrderRecord">
+    <bind name="filter" value="scope.filter"/>
+    SELECT id,order_no,customer_name,customer_phone,status,channel,amount,currency,region,created_at FROM orders
+    <where>
+    <if test="filter != null"><include refid="filter"/></if>
+    <if test="scope.type == 'SELECTED'">AND EXISTS (SELECT 1 FROM export_task_orders selected WHERE selected.task_id=#{taskId} AND selected.order_id=orders.id)</if>
+    <if test="scope.type == 'FILTERED'">AND NOT EXISTS (SELECT 1 FROM export_task_orders excluded WHERE excluded.task_id=#{taskId} AND excluded.order_id=orders.id)</if>
+    <if test="after != null">AND (created_at &lt; #{after.createdAt} OR (created_at=#{after.createdAt} AND id&lt;#{after.id}))</if>
+    </where>
+    ORDER BY created_at DESC,id DESC LIMIT #{limit}
+  </select>
+  <select id="countMatching" resultType="long">
+    SELECT COUNT(*) FROM orders WHERE id IN
+    <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    <include refid="filter"/>
+  </select>
+</mapper>

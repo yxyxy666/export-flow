@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 设计 data-model.md；TC-235真实连续版本提交。 -->
+<mapper namespace="com.exportflow.worker.infrastructure.persistence.CheckpointMapper">
+  <sql id="columns">task_id,data_generation,checkpoint_version,verified_prefix_count,cursor_created_at,cursor_order_id,processed_high_water,configuration_hash,format_version</sql>
+  <select id="find" resultType="com.exportflow.worker.infrastructure.persistence.CheckpointRecord">SELECT <include refid="columns"/> FROM export_checkpoints WHERE task_id=#{taskId}</select>
+  <select id="lock" resultType="com.exportflow.worker.infrastructure.persistence.CheckpointRecord">SELECT <include refid="columns"/> FROM export_checkpoints WHERE task_id=#{taskId} FOR UPDATE</select>
+  <select id="findBlocks" resultType="com.exportflow.worker.infrastructure.persistence.CheckpointRecord$BlockRecord">SELECT * FROM export_data_blocks WHERE task_id=#{taskId} AND data_generation=#{generation} ORDER BY sequence LIMIT 201</select>
+  <select id="findBlock" resultType="com.exportflow.worker.infrastructure.persistence.CheckpointRecord$BlockRecord">SELECT * FROM export_data_blocks WHERE task_id=#{taskId} AND block_id=#{blockId}</select>
+  <insert id="initialize">INSERT INTO export_checkpoints(task_id,data_generation,checkpoint_version,verified_prefix_count,processed_high_water,configuration_hash,format_version) VALUES(#{taskId},1,0,0,0,#{hash},1)</insert>
+  <insert id="insertBlock">INSERT INTO export_data_blocks(block_id,task_id,data_generation,sequence,previous_cursor_json,last_cursor_json,row_count,byte_size,checksum,storage_ref,format_version,configuration_hash,created_by_owner,created_by_fence) VALUES(#{blockId},#{taskId},#{dataGeneration},#{sequence},#{previousCursorJson},#{lastCursorJson},#{rowCount},#{byteSize},#{checksum},#{storageRef},#{formatVersion},#{configurationHash},#{createdByOwner},#{createdByFence})</insert>
+  <update id="updateCheckpoint">UPDATE export_checkpoints SET verified_prefix_count=#{count},processed_high_water=GREATEST(processed_high_water,#{count}),cursor_created_at=#{time},cursor_order_id=#{id},checkpoint_version=checkpoint_version+1 WHERE task_id=#{taskId}</update>
+  <update id="startGeneration">UPDATE export_checkpoints SET data_generation=data_generation+1,checkpoint_version=checkpoint_version+1,verified_prefix_count=0,cursor_created_at=NULL,cursor_order_id=NULL WHERE task_id=#{taskId}</update>
+</mapper>
