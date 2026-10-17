@@ -1,0 +1,679 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "任务列表、SSE与暂停接口设计",
+    "version": "0.3.0-draft",
+    "description": "004规格0.3已批准并实施；行为归产品验收基线，创建/下载引用已有契约。"
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "paths": {
+    "/api/v1/export-tasks": {
+      "get": {
+        "operationId": "queryExportTasks",
+        "summary": "查询任务与全环境活动快照",
+        "description": "READ COMMITTED单条SELECT；createdAt/taskId倒序；拒绝重复/未知参数。",
+        "parameters": [
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "description": "trim后100码点；编号/展示名子串，转义%/_"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/TaskStatus"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647,
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "enum": [
+                20,
+                50,
+                100
+              ],
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "一致分页快照；空页保留total与活动元信息",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskPage"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR：非法/重复/未知参数；outcome=REJECTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "安全内部错误；无法确认提交时outcome=UNKNOWN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "STATE_UNAVAILABLE：依赖不可读或提交不明；outcome=UNKNOWN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "x-existing-create-contract": {
+        "$ref": "../../002-order-management/contracts/openapi.yaml#/paths/~1api~1v1~1export-tasks/post"
+      }
+    },
+    "/api/v1/export-tasks/{taskId}/pause": {
+      "post": {
+        "operationId": "pauseExportTask",
+        "summary": "幂等暂停或找回原操作",
+        "description": "先读operationId回执再核验controlVersion；200受理不表示已停止。REPLAY另读当前权威task。",
+        "parameters": [
+          {
+            "name": "taskId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PauseRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "已确认提交的受理或同操作重放",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PauseResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR：非法/重复/未知参数；outcome=REJECTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "TASK_NOT_FOUND；outcome=REJECTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "TASK_ACTION_NOT_ALLOWED / TASK_CONTROL_CONFLICT / OPERATION_ID_REUSED；outcome=REJECTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "安全内部错误；无法确认提交时outcome=UNKNOWN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "STATE_UNAVAILABLE：依赖不可读或提交不明；outcome=UNKNOWN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/export-tasks/events": {
+      "get": {
+        "operationId": "subscribeExportTaskEvents",
+        "summary": "全环境SSE",
+        "description": "不接受查询参数。先注册缓冲再ready，客户端桥接快照；Last-Event-ID无历史回放。idle后一次最终快照，不轮询。字段和生命周期见http-sse.md。",
+        "parameters": [
+          {
+            "name": "Last-Event-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "具名stream-ready/task-updated/stream-idle及心跳注释，每个data为对应schema的JSON",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-cache, no-transform"
+                }
+              },
+              "X-Accel-Buffering": {
+                "schema": {
+                  "type": "string",
+                  "const": "no"
+                }
+              }
+            },
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "event: stream-ready\ndata: {\"connectionId\":\"e7718e88-5d45-4a85-ab80-dd208954ce99\",\"activityVersion\":\"1\"}\n\n"
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR：非法/重复/未知参数；outcome=REJECTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "安全内部错误；无法确认提交时outcome=UNKNOWN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "STATE_UNAVAILABLE：依赖不可读或提交不明；outcome=UNKNOWN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-event-schemas": {
+          "stream-ready": {
+            "$ref": "#/components/schemas/StreamReady"
+          },
+          "task-updated": {
+            "$ref": "#/components/schemas/TaskUpdated"
+          },
+          "stream-idle": {
+            "$ref": "#/components/schemas/StreamIdle"
+          }
+        },
+        "x-event-id": "connectionId/activityVersion[/taskId/version]"
+      }
+    },
+    "/api/v1/export-tasks/{taskId}/file": {
+      "$ref": "../../002-order-management/contracts/openapi.yaml#/paths/~1api~1v1~1export-tasks~1{taskId}~1file"
+    }
+  },
+  "components": {
+    "schemas": {
+      "NonNegativeLong": {
+        "type": "string",
+        "pattern": "^(0|[1-9][0-9]{0,18})$",
+        "description": "非负Java long十进制字符串；语义上限9223372036854775807"
+      },
+      "TaskStatus": {
+        "type": "string",
+        "enum": [
+          "PENDING",
+          "RUNNING",
+          "PAUSING",
+          "PAUSED",
+          "SUCCEEDED",
+          "FAILED"
+        ]
+      },
+      "TaskListItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "taskNo": {
+            "type": "string",
+            "pattern": "^[A-Z0-9_-]{1,64}$"
+          },
+          "scopeType": {
+            "type": "string",
+            "enum": [
+              "SELECTED",
+              "FILTERED"
+            ]
+          },
+          "totalCount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200000
+          },
+          "processedCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 200000,
+            "description": "最近事务提交的可信行数；新版本校验后允许下降，历史高水位不参与显示"
+          },
+          "progressPercent": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus"
+          },
+          "fields": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 9,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "orderNo",
+                "customerName",
+                "customerPhone",
+                "status",
+                "channel",
+                "amount",
+                "currency",
+                "region",
+                "createdAt"
+              ]
+            }
+          },
+          "fileName": {
+            "type": "string",
+            "maxLength": 256,
+            "description": "非成功展示名称不证明文件存在"
+          },
+          "fileSize": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NonNegativeLong"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "Z$"
+          },
+          "finishedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "Z$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errorCode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 64
+          },
+          "errorSummary": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 256
+          },
+          "version": {
+            "$ref": "#/components/schemas/NonNegativeLong"
+          },
+          "controlVersion": {
+            "$ref": "#/components/schemas/NonNegativeLong"
+          },
+          "allowedActions": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "PAUSE",
+                "DOWNLOAD"
+              ]
+            }
+          },
+          "executionPhase": {
+            "$ref": "#/components/schemas/ExecutionPhase"
+          },
+          "repairState": {
+            "$ref": "#/components/schemas/RepairState"
+          },
+          "repairEpoch": {
+            "$ref": "#/components/schemas/NonNegativeLong"
+          },
+          "repairAttempt": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3,
+            "description": "已接受每任务轮次上限3，跨崩溃保留"
+          },
+          "repairReasonCode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              null,
+              "DATA_BLOCK_MISSING",
+              "DATA_BLOCK_CORRUPT",
+              "DATA_BLOCK_RECORD_MISSING",
+              "WORKBOOK_CORRUPT",
+              "DATA_REPAIR_UNRECOVERABLE",
+              "DATA_REPAIR_SOURCE_CHANGED",
+              "DATA_REPAIR_EXHAUSTED",
+              "DATA_REPAIR_IO_ERROR"
+            ]
+          }
+        },
+        "required": [
+          "taskId",
+          "taskNo",
+          "scopeType",
+          "totalCount",
+          "processedCount",
+          "progressPercent",
+          "status",
+          "fields",
+          "fileName",
+          "fileSize",
+          "createdAt",
+          "finishedAt",
+          "errorCode",
+          "errorSummary",
+          "version",
+          "controlVersion",
+          "allowedActions",
+          "executionPhase",
+          "repairState",
+          "repairEpoch",
+          "repairAttempt",
+          "repairReasonCode"
+        ],
+        "description": "processedCount<=totalCount；成功100%，其他状态最多99%。服务端严格六态，前端对未知status安全展示且禁用动作。展示名按香港创建时间生成。 修复字段与计数同事务版本化；RUNNING内自动修复，SSE不逐次读盘。repairState=REBUILDING时包括后续重新装配，黄色提示由持久状态驱动。"
+      },
+      "TaskPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/TaskListItem"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "pageSize": {
+            "type": "integer",
+            "enum": [
+              20,
+              50,
+              100
+            ]
+          },
+          "total": {
+            "$ref": "#/components/schemas/NonNegativeLong"
+          },
+          "activityVersion": {
+            "$ref": "#/components/schemas/NonNegativeLong"
+          },
+          "hasActiveTasks": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total",
+          "activityVersion",
+          "hasActiveTasks"
+        ]
+      },
+      "PauseRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "operationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expectedControlVersion": {
+            "$ref": "#/components/schemas/NonNegativeLong"
+          }
+        },
+        "required": [
+          "operationId",
+          "expectedControlVersion"
+        ]
+      },
+      "PauseResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "APPLIED",
+              "REPLAY"
+            ]
+          },
+          "task": {
+            "$ref": "#/components/schemas/TaskListItem"
+          }
+        },
+        "required": [
+          "outcome",
+          "task"
+        ]
+      },
+      "ApiError": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "REJECTED",
+              "UNKNOWN"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "traceId",
+          "outcome"
+        ]
+      },
+      "StreamReady": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "activityVersion": {
+            "$ref": "#/components/schemas/NonNegativeLong"
+          }
+        },
+        "required": [
+          "connectionId",
+          "activityVersion"
+        ]
+      },
+      "StreamIdle": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "activityVersion": {
+            "$ref": "#/components/schemas/NonNegativeLong"
+          }
+        },
+        "required": [
+          "connectionId",
+          "activityVersion"
+        ]
+      },
+      "TaskUpdated": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "activityVersion": {
+            "$ref": "#/components/schemas/NonNegativeLong"
+          },
+          "task": {
+            "$ref": "#/components/schemas/TaskListItem"
+          }
+        },
+        "required": [
+          "activityVersion",
+          "task"
+        ]
+      },
+      "ExecutionPhase": {
+        "type": "string",
+        "enum": [
+          "NOT_STARTED",
+          "COLLECTING",
+          "CHECKING",
+          "REBUILDING",
+          "ASSEMBLING",
+          "COMPLETE"
+        ]
+      },
+      "RepairState": {
+        "type": "string",
+        "enum": [
+          "NONE",
+          "CHECKING",
+          "REBUILDING",
+          "PAUSING",
+          "PAUSED",
+          "FAILED"
+        ]
+      }
+    }
+  }
+}

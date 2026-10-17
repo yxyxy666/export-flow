@@ -1,3 +1,4 @@
+// 本期实施与验证：[任务记录](../../../../../../../../specs/004-task-management/tasks.md)。
 // 规格互链：[计划](../../../../../../../../specs/002-order-management/plan.md)；[任务与完整映射](../../../../../../../../specs/002-order-management/tasks.md)；验证：[CreateTransactionMySqlTest.java](../../../../../../test/java/com/exportflow/exporttasks/CreateTransactionMySqlTest.java)、[CreationAsyncBoundaryTest.java](../../../../../../test/java/com/exportflow/exporttasks/CreationAsyncBoundaryTest.java)、[CreationInputBoundaryTest.java](../../../../../../test/java/com/exportflow/exporttasks/CreationInputBoundaryTest.java)。
 package com.exportflow.exporttasks.domain;
 
@@ -22,7 +23,42 @@ public record ExportTask(
     String errorSummary,
     String fileName,
     Long fileSize,
-    UUID resultArtifactId) {
+    UUID resultArtifactId,
+    long controlVersion) {
+  /** 旧调用兼容身份0；写入口仍须校验数据库当前控制屏障。 */
+  public ExportTask(
+      UUID taskId,
+      String taskNo,
+      String scopeType,
+      long totalCount,
+      long processedCount,
+      TaskStatus status,
+      long version,
+      Instant createdAt,
+      Instant finishedAt,
+      String errorCode,
+      String errorSummary,
+      String fileName,
+      Long fileSize,
+      UUID resultArtifactId) {
+    this(
+        taskId,
+        taskNo,
+        scopeType,
+        totalCount,
+        processedCount,
+        status,
+        version,
+        createdAt,
+        finishedAt,
+        errorCode,
+        errorSummary,
+        fileName,
+        fileSize,
+        resultArtifactId,
+        0);
+  }
+
   public static ExportTask pending(
       UUID id,
       String number,

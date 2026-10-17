@@ -1,3 +1,4 @@
+// 本期实施与验证：[任务记录](../../../../specs/004-task-management/tasks.md)。
 // 设计：[函数与错误边界](../../../../specs/002-order-management/function-design-reference.md#frontendsrcsharedapiapi-errorts)。
 // 验证：[API测试](../../features/orders/__tests__/order-api.test.ts)，TC-210/211。
 export interface ApiError {
@@ -19,6 +20,11 @@ export class ApiRequestError extends Error {
 }
 
 const safeErrors: Record<string, { statuses: number[]; message: string }> = {
+  STATE_UNAVAILABLE: { statuses: [503], message: '任务状态暂不可用' },
+  TASK_NOT_FOUND: { statuses: [404], message: '任务不存在，请刷新列表' },
+  TASK_ACTION_NOT_ALLOWED: { statuses: [409], message: '任务当前状态不允许暂停，请刷新列表' },
+  TASK_CONTROL_CONFLICT: { statuses: [409], message: '任务控制状态已改变，请刷新后确认' },
+  OPERATION_ID_REUSED: { statuses: [409], message: '操作标识与请求不一致，请刷新列表' },
   VALIDATION_ERROR: { statuses: [400], message: '输入有误，请检查筛选或导出配置' },
   EMPTY_EXPORT_SCOPE: { statuses: [400], message: '导出范围为空' },
   INVALID_EXPORT_FIELDS: { statuses: [400], message: '请至少选择一个有效字段' },

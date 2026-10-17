@@ -25,6 +25,8 @@ make dev
 
 本机2026-10-12已按负责人要求准备被Git忽略的.env.local，并在已有服务内创建应用库export_flow、专属运行/迁移账号和MQ vhost /export-flow及专属账号；运行账号对来源订单仅有SELECT权限，真实密码只存本地配置。当前直接执行`make dev`，不要用示例覆盖已准备的文件。
 
+2026-10-17本机8080被Steam调试服务占用，`.env.local`现设`EXPORT_FLOW_BACKEND_PORT=8081`。后端和Vite代理共用该键，页面仍为5173，无需关闭Steam。示例及未配置默认值保留8080；修改端口后重新启动前后端。诊断和实际验证见[运行修复记录](../docs/validation/004-task-management/runtime-startup-fix.md)。
+
 其他开发环境首次配置时，在项目根执行：
 
 ```powershell
@@ -53,6 +55,8 @@ make dev
 
 前端地址[http://127.0.0.1:5173/orders](http://127.0.0.1:5173/orders)，API地址[http://127.0.0.1:8080](http://127.0.0.1:8080)，健康检查[http://127.0.0.1:8080/actuator/health](http://127.0.0.1:8080/actuator/health)。端口被占用时直接报错。
 
+上行API为默认端口；本机当前实际API和健康检查使用`http://127.0.0.1:8081`及`http://127.0.0.1:8081/actuator/health`，由`EXPORT_FLOW_BACKEND_PORT`决定。
+
 并行启动中任一服务因连接或端口失败时，查看错误并按Ctrl+C停止其余应用，再修正配置重新启动。
 
 没有GNU Make时，在两个终端分别执行相同入口：
@@ -63,3 +67,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/run-project.ps1 
 ```
 
 脚本也支持--help；任一命令失败返回非零码。实际核验见[启动入口记录](../docs/validation/002-order-management/startup-entry.md)。
+
+## 任务进度实例配置
+
+任务列表／SSE使用`EXPORT_FLOW_INSTANCE_ID`作为稳定实例身份，同环境每个API实例必须唯一；重复身份无法取得exclusive consumer时拒绝就绪。`EXPORT_FLOW_PROGRESS_ENABLED`控制进度通知，Redis连接由`.env.example`中的`EXPORT_FLOW_REDIS_*`配置，缓存故障时回源MySQL。脚本允许这些外部变量。应用MQ账号除原命令权限外，还需当前vhost内进度交换机`exportflow.progress.v1`与本实例队列`exportflow.progress.v1.<instanceId>`的声明、绑定、发布和消费权限；不授予其他vhost权限。任务功能和验证步骤见[004说明](../specs/004-task-management/quickstart.md)。

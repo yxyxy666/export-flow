@@ -1,3 +1,4 @@
+// 本期实施与验证：[任务记录](../../../../../../../specs/004-task-management/tasks.md)。
 // [AC-068](../../../../../../../docs/product/acceptance-criteria.md#ac-068)
 // 规格：[执行与断点](../../../../../../../specs/002-order-management/excel-design.md)
 package com.exportflow.worker;
@@ -50,7 +51,14 @@ class DataCollectionGuardUnitTest {
               return new CheckpointSnapshot(
                   id, 1, 1, null, 0, 0, "synthetic-config", List.of(block));
             });
-    var service = new ExportDataCollectionService(checkpoints, orders, storage);
+    var service =
+        new ExportDataCollectionService(
+            checkpoints,
+            orders,
+            storage,
+            mock(com.exportflow.worker.port.AssemblyRepairRepository.class),
+            new com.exportflow.worker.infrastructure.file.DataBlockCodec(
+                new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules()));
     var failure = catchThrowable(() -> service.collect(context, active::get));
     verify(storage, never()).readBlock(any());
     verifyNoInteractions(orders);

@@ -1,3 +1,4 @@
+// 本期实施与验证：[任务记录](../../../../../../../../../specs/004-task-management/tasks.md)。
 // 增量实施：[计划](../../../../../../../../../specs/003-select-all-filtered/plan.md)、[任务](../../../../../../../../../specs/003-select-all-filtered/tasks.md)；[测试](../../../../../../../test/java/com/exportflow/exporttasks/ExportExclusionMySqlTest.java)。
 // 规格互链：[计划](../../../../../../../../../specs/002-order-management/plan.md)；[任务与完整映射](../../../../../../../../../specs/002-order-management/tasks.md)；验证：[CreateTransactionMySqlTest.java](../../../../../../../test/java/com/exportflow/exporttasks/CreateTransactionMySqlTest.java)、[CreationAsyncBoundaryTest.java](../../../../../../../test/java/com/exportflow/exporttasks/CreationAsyncBoundaryTest.java)、[CreationInputBoundaryTest.java](../../../../../../../test/java/com/exportflow/exporttasks/CreationInputBoundaryTest.java)。
 // 职责：任务持久化端口适配。
@@ -16,11 +17,15 @@ import org.springframework.stereotype.Repository;
 public class MyBatisExportTaskRepository implements ExportTaskRepository {
   private final ExportTaskMapper mapper;
   private final ExportTaskPersistenceMapper converter;
+  private final com.exportflow.progress.port.ProgressRepository progress;
 
   public MyBatisExportTaskRepository(
-      ExportTaskMapper mapper, ExportTaskPersistenceMapper converter) {
+      ExportTaskMapper mapper,
+      ExportTaskPersistenceMapper converter,
+      com.exportflow.progress.port.ProgressRepository progress) {
     this.mapper = mapper;
     this.converter = converter;
+    this.progress = progress;
   }
 
   public void insert(ExportTask task, ExportScope scope, List<ExportField> fields) {
@@ -42,11 +47,16 @@ public class MyBatisExportTaskRepository implements ExportTaskRepository {
   }
 
   public ExportTask lockTask(UUID taskId) {
+    // 所有既有写事务从这里先取得活动锁，防止task→activity锁序反转。
+    progress.lockActivity();
     var row = mapper.lockTask(taskId.toString());
     return row == null ? null : converter.toTask(row);
   }
 
   public boolean failDispatchTimeout(UUID taskId, Instant endedAt) {
-    return mapper.failDispatchTimeout(taskId.toString(), endedAt) == 1;
+    boolean changed = mapper.failDispatchTimeout(taskId.toString(), endedAt) == 1;
+    if (changed)
+      progress.recordChange(taskId, mapper.findSummary(taskId.toString()).orElseThrow().version());
+    return changed;
   }
 }

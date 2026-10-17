@@ -1,3 +1,4 @@
+// 本期实施与验证：[任务记录](../../../../../../../../specs/004-task-management/tasks.md)。
 // 规格互链：[计划](../../../../../../../../specs/002-order-management/plan.md)；[任务与完整映射](../../../../../../../../specs/002-order-management/tasks.md)；验证：[RuntimeCapabilityTest.java](../../../../../../test/java/com/exportflow/RuntimeCapabilityTest.java)、[DeliveryIsolationUnitTest.java](../../../../../../test/java/com/exportflow/worker/DeliveryIsolationUnitTest.java)、[DurabilityGuardTest.java](../../../../../../test/java/com/exportflow/worker/DurabilityGuardTest.java)。
 package com.exportflow.worker.domain;
 
@@ -33,12 +34,24 @@ public final class ExecutionModels {
   }
 
   public record ExecutionLease(
-      UUID taskId, String owner, long fence, Instant leaseUntil, long progressVersion) {}
+      UUID taskId,
+      String owner,
+      long fence,
+      Instant leaseUntil,
+      long progressVersion,
+      long controlVersion) {
+    public ExecutionLease(
+        UUID taskId, String owner, long fence, Instant leaseUntil, long progressVersion) {
+      this(taskId, owner, fence, leaseUntil, progressVersion, 0);
+    }
+  }
 
   public enum ClaimKind {
     ACQUIRED,
     TERMINAL,
     BUSY,
+    PAUSING,
+    PAUSED,
     UNKNOWN
   }
 
@@ -55,10 +68,45 @@ public final class ExecutionModels {
   public enum GenerationKind {
     READY,
     KNOWN_FAILURE,
+    PAUSE_STOPPED,
     UNKNOWN
   }
 
-  public record GenerationResult(GenerationKind kind, ArtifactProof artifact, SafeFailure error) {}
+  public record GenerationResult(
+      GenerationKind kind,
+      ArtifactProof artifact,
+      SafeFailure error,
+      PauseProof pauseProof,
+      boolean resourcesClosed) {
+    public GenerationResult(GenerationKind kind, ArtifactProof artifact, SafeFailure error) {
+      this(kind, artifact, error, null, false);
+    }
+  }
+
+  public enum StopReason {
+    NONE,
+    USER_PAUSE,
+    LOST_AUTHORITY,
+    UNKNOWN
+  }
+
+  public record PauseProof(
+      UUID taskId,
+      String owner,
+      long fence,
+      long requestedControlVersion,
+      long lastCheckpointVersion) {}
+
+  public record ControlSnapshot(
+      String status,
+      long controlVersion,
+      String owner,
+      Long fence,
+      Instant leaseUntil,
+      long checkpointVersion,
+      String readOutcome) {}
+
+  public record PauseReconcileResult(String kind) {}
 
   public record DeliveryContext(String channelId, long deliveryTag, Instant receivedAt) {}
 

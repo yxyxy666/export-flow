@@ -1,3 +1,4 @@
+// 本期实施与验证：[任务记录](../../../../../../../../../specs/004-task-management/tasks.md)。
 // 规格互链：[计划](../../../../../../../../../specs/002-order-management/plan.md)；[任务与完整映射](../../../../../../../../../specs/002-order-management/tasks.md)；验证：[ExcelBoundaryTest.java](../../../../../../../test/java/com/exportflow/worker/ExcelBoundaryTest.java)、[ExcelContentTest.java](../../../../../../../test/java/com/exportflow/worker/ExcelContentTest.java)、[ExcelValidationBoundaryTest.java](../../../../../../../test/java/com/exportflow/worker/ExcelValidationBoundaryTest.java)。
 package com.exportflow.worker.infrastructure.excel;
 
@@ -97,7 +98,8 @@ public class ExcelFileValidator {
   }
 
   private void check(ExecutionGuard guard) throws IOException {
-    if (!guard.check() || Thread.currentThread().isInterrupted()) throw new IOException("执行已停止");
+    if (!guard.check() || Thread.currentThread().isInterrupted())
+      throw new ExecutionStoppedException();
   }
 
   private final class SheetHandler extends DefaultHandler {

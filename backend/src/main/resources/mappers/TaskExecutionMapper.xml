@@ -2,15 +2,15 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <!-- 设计 data-model.md，TC-224/235。 -->
 <mapper namespace="com.exportflow.worker.infrastructure.persistence.TaskExecutionMapper">
-  <sql id="columns">task_id,owner_id,fence,lease_until,heartbeat_at,progress_version,attempt_started_at,attempt_deadline,recovery_count,next_recovery_at</sql>
+  <sql id="columns">task_id,owner_id,fence,lease_until,heartbeat_at,progress_version,attempt_started_at,attempt_deadline,recovery_count,next_recovery_at,control_version</sql>
   <select id="find" resultType="com.exportflow.worker.infrastructure.persistence.ExecutionLeaseRecord">SELECT <include refid="columns"/> FROM task_execution WHERE task_id=#{taskId}</select>
   <select id="lock" resultType="com.exportflow.worker.infrastructure.persistence.ExecutionLeaseRecord">SELECT <include refid="columns"/> FROM task_execution WHERE task_id=#{taskId} FOR UPDATE</select>
   <insert id="insertLease">INSERT INTO task_execution(task_id,owner_id,fence,lease_until,heartbeat_at,progress_version,attempt_started_at,attempt_deadline,recovery_count,next_recovery_at) VALUES(#{taskId},#{owner},1,#{until},#{now},0,#{now},#{deadline},0,#{recoveryAt})</insert>
   <update id="takeOver">UPDATE task_execution SET owner_id=#{owner},fence=fence+1,lease_until=#{until},heartbeat_at=#{now},attempt_started_at=#{now},attempt_deadline=#{deadline},recovery_count=recovery_count+1,next_recovery_at=#{recoveryAt} WHERE task_id=#{taskId}</update>
-  <update id="markRunning">UPDATE export_tasks SET status='RUNNING',version=version+1 WHERE task_id=#{taskId} AND status='PENDING'</update>
+  <update id="markRunning">UPDATE export_tasks SET status='RUNNING',execution_phase='COLLECTING',version=version+1 WHERE task_id=#{taskId} AND status='PENDING'</update>
   <update id="renew">UPDATE task_execution SET lease_until=#{until},heartbeat_at=#{now},next_recovery_at=#{recoveryAt} WHERE task_id=#{taskId}</update>
   <update id="releaseLease">UPDATE task_execution SET lease_until=#{now},heartbeat_at=#{now} WHERE task_id=#{taskId}</update>
-  <update id="completeTask">UPDATE export_tasks SET status=#{status},finished_at=#{now},result_artifact_id=#{artifactId},file_name=#{fileName},file_size=#{size},error_code=#{code},error_summary=#{message},version=version+1 WHERE task_id=#{taskId} AND status='RUNNING'</update>
+  <update id="completeTask">UPDATE export_tasks SET status=#{status},finished_at=#{now},result_artifact_id=#{artifactId},file_name=#{fileName},file_size=#{size},error_code=#{code},error_summary=#{message},execution_phase='COMPLETE',repair_state=IF(#{status}='SUCCEEDED','NONE',IF(repair_state='NONE','NONE','FAILED')),repair_reason_code=IF(#{status}='SUCCEEDED',NULL,repair_reason_code),trusted_processed_count=IF(#{status}='SUCCEEDED',total_count,trusted_processed_count),version=version+1 WHERE task_id=#{taskId} AND status='RUNNING'</update>
   <update id="advanceProgressVersion">UPDATE task_execution SET progress_version=progress_version+1 WHERE task_id=#{taskId}</update>
-  <update id="updateProgress">UPDATE export_tasks SET processed_count=GREATEST(processed_count,#{processed}),version=version+1 WHERE task_id=#{taskId} AND status='RUNNING' AND #{processed}&lt;=total_count</update>
+  <update id="updateProgress">UPDATE export_tasks SET processed_count=GREATEST(processed_count,#{processed}),trusted_processed_count=#{processed},version=version+1 WHERE task_id=#{taskId} AND status='RUNNING' AND #{processed}&lt;=total_count</update>
 </mapper>

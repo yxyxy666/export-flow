@@ -15,7 +15,9 @@ function Import-LocalConfiguration {
     $taskAllowedKeys = @(
         'EXPORT_FLOW_JDBC_URL', 'EXPORT_FLOW_DB_USER', 'EXPORT_FLOW_DB_PASSWORD',
         'SPRING_FLYWAY_USER', 'SPRING_FLYWAY_PASSWORD', 'EXPORT_FLOW_AMQP_URL',
-        'EXPORT_FLOW_MANAGEMENT_URL', 'EXPORT_FLOW_FILE_ROOT', 'EXPORT_FLOW_LOG_FILE'
+        'EXPORT_FLOW_MANAGEMENT_URL', 'EXPORT_FLOW_FILE_ROOT', 'EXPORT_FLOW_LOG_FILE',
+        'EXPORT_FLOW_INSTANCE_ID', 'EXPORT_FLOW_PROGRESS_ENABLED', 'EXPORT_FLOW_BACKEND_PORT',
+        'EXPORT_FLOW_REDIS_HOST', 'EXPORT_FLOW_REDIS_PORT', 'EXPORT_FLOW_REDIS_USER', 'EXPORT_FLOW_REDIS_PASSWORD'
     )
     $taskLineNumber = 0
     foreach ($taskLine in Get-Content -LiteralPath $taskConfiguration -Encoding UTF8) {
@@ -46,6 +48,10 @@ function Assert-Command([string]$Name) {
 }
 
 function Assert-BackendConfiguration {
+    $taskBackendPort = [Environment]::GetEnvironmentVariable('EXPORT_FLOW_BACKEND_PORT', 'Process')
+    if ($taskBackendPort -and ($taskBackendPort -notmatch '^\d{1,5}$' -or [int]$taskBackendPort -lt 1 -or [int]$taskBackendPort -gt 65535)) {
+        throw 'EXPORT_FLOW_BACKEND_PORT 必须为1至65535的端口号。'
+    }
     $taskRequiredKeys = @(
         'EXPORT_FLOW_JDBC_URL', 'EXPORT_FLOW_DB_USER', 'EXPORT_FLOW_DB_PASSWORD',
         'SPRING_FLYWAY_USER', 'SPRING_FLYWAY_PASSWORD', 'EXPORT_FLOW_AMQP_URL'
@@ -117,7 +123,8 @@ try {
             # 与已核验的测试环境一致，使用构建目录完整路径；不改系统 TEMP。
             $taskSocketRoot = Join-Path $taskProjectRoot 'backend/target'
             New-Item -ItemType Directory -Path $taskSocketRoot -Force | Out-Null
-            Write-Output '后端 http://127.0.0.1:8080；启用真实导出消费者，Ctrl+C 停止。'
+            $taskBackendPort = if ($env:EXPORT_FLOW_BACKEND_PORT) { $env:EXPORT_FLOW_BACKEND_PORT } else { '8080' }
+            Write-Output "后端 http://127.0.0.1:$taskBackendPort；启用真实导出消费者，Ctrl+C 停止。"
             Invoke-CheckedCommand -Command 'java' -Arguments @('-Xmx512m', "-Djdk.net.unixdomain.tmpdir=$taskSocketRoot", '-jar', 'backend/target/export-flow-0.2.0-SNAPSHOT.jar', '--export-flow.consumer-enabled=true')
         }
         'frontend' {

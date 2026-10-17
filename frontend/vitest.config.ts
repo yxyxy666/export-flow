@@ -1,3 +1,4 @@
+// 本期实施与验证：[任务记录](../specs/004-task-management/tasks.md)。
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
@@ -8,7 +9,7 @@ export default defineConfig({
     environment: 'jsdom',
     environmentOptions: { jsdom: { url: 'http://localhost/' } },
     setupFiles: ['./src/test/setup.ts'],
-    include: ['src/features/orders/__tests__/*.test.{ts,tsx}', 'src/test/*.test.ts'],
+    include: ['src/features/orders/__tests__/*.test.{ts,tsx}', 'src/features/export-tasks/__tests__/*.test.{ts,tsx}', 'src/test/*.test.ts'],
     restoreMocks: true,
     // 页面交互大量计算样式，串行文件执行避免多个jsdom争用CPU触发整条用例超时。
     fileParallelism: false,

@@ -1,0 +1,32 @@
+{
+  "date": "2026-10-17",
+  "specification": "004-task-management/0.3",
+  "stage": "本期实施与适用验证完成；不代替负责人产品验收",
+  "frontend": { "uniqueTests": 116, "passed": 116, "failed": 0, "frozenInstall": "通过", "typecheckAndBuild": "通过" },
+  "backend": { "unitTests": 14, "integrationTests": 127, "passed": 141, "failed": 0, "finalWrapperVerifyExitCode": 0 },
+  "quality": {
+    "spotless": "通过",
+    "checkstyleViolations": 0,
+    "spotbugsIssues": 0,
+    "spotbugsAnalysisErrors": 0,
+    "jacoco": "HTML/XML已生成；历史累积类版本不匹配，不能据此宣称当前版本完整覆盖率",
+    "powerShellParseErrors": 0,
+    "documentAuditErrors": 0,
+    "gitDiffCheckExitCode": 0
+  },
+  "backendJarSha256": "37c09d07fe55d0d2f96e03e1c56d3a42e1f012a31bf7dd6c114df333449cbae9",
+  "infrastructure": "复用负责人现有MySQL、RabbitMQ、Redis；每测试隔离资源；订单只读",
+  "exclusions": ["性能、容量、资源阈值", "超时、延时、TTL、宽限、lease到期、退避时长"],
+  "limits": ["初次交付浏览器视觉采用合成响应，后端真实协议由独立集成测试验证", "初次交付未切换8080端口占用进程或运行库；后续本机启动见currentRuntime", "未创建Git提交"],
+  "currentRuntime": {
+    "backendPort": 8081,
+    "frontendPort": 5173,
+    "backendHealth": "UP",
+    "proxiedListStatus": 200,
+    "proxiedSseStatus": 200,
+    "streamReadyReceived": true,
+    "note": "历史烟测通过；随后已优雅关闭验证后端并释放8081，保留用户5173前端，由用户终端make dev统一管理服务",
+    "evidence": "runtime-startup-fix.md"
+  },
+  "evidence": "verification.md"
+}

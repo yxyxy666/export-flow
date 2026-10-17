@@ -1,3 +1,4 @@
+// 本期实施与验证：[任务记录](../../../../specs/004-task-management/tasks.md)。
 // 设计：[统一API函数](../../../../specs/002-order-management/function-design-reference.md#frontendsrcsharedapiapits)。
 // 验证：[API测试](../../features/orders/__tests__/order-api.test.ts)，TC-210/211。
 import type { OrderDto, OrderQuery } from '../../features/orders/types/order.types';
@@ -7,6 +8,9 @@ import { orderPageSchema, orderQuerySchema } from '../../features/orders/models/
 import { createExportRequestSchema, createExportResponseSchema } from '../../features/export-tasks/models/export-task-schema';
 import { ApiRequestError } from './api-error';
 import { requestJson } from './http-client';
+import type { PauseRequest, PauseResult, TaskPage, TaskQuery } from '../../features/export-tasks/types/export-task.types';
+import { pauseRequestSchema, pauseResultSchema, taskPageSchema, taskQuerySchema } from '../../features/export-tasks/models/export-task-schema';
+import { writeTaskQuery } from '../../features/export-tasks/models/task-query';
 
 /** 唯一订单查询入口：只编码已提交条件，校验协议后才交给查询缓存。 */
 export async function queryOrders(query: OrderQuery, signal?: AbortSignal): Promise<PageResult<OrderDto>> {
@@ -44,4 +48,34 @@ export async function createExportTask(request: CreateExportRequest, idempotency
     code: 'INVALID_RESPONSE', message: '创建结果尚未确认，请用原请求重试确认', traceId: '', outcome: 'UNKNOWN',
   });
   return response.data;
+}
+
+/** 权威分页查询统一入口；不从浏览器缓存推断任务控制状态。 */
+export async function queryExportTasks(query: TaskQuery, signal?: AbortSignal): Promise<TaskPage> {
+  const input = taskQuerySchema.parse(query);
+  const result = taskPageSchema.safeParse(await requestJson(`/api/v1/export-tasks?${writeTaskQuery(input)}`, { signal }));
+  if (!result.success) throw new ApiRequestError('protocol', {
+    code: 'INVALID_RESPONSE', message: '任务响应无效，请刷新', traceId: '', outcome: 'UNKNOWN',
+  });
+  return result.data;
+}
+/** 保留调用方冻结的操作ID与控制版本，结果不明时不生成新操作。 */
+export async function pauseExportTask(taskId: string, request: PauseRequest, signal?: AbortSignal): Promise<PauseResult> {
+  const input = pauseRequestSchema.parse(request);
+  if (!/^[0-9a-f-]{36}$/i.test(taskId)) throw new Error('任务标识无效');
+  const result = pauseResultSchema.safeParse(await requestJson(`/api/v1/export-tasks/${taskId}/pause`, {
+    method: 'POST', body: input, signal,
+  }));
+  if (!result.success) throw new ApiRequestError('protocol', {
+    code: 'INVALID_RESPONSE', message: '暂停结果尚未确认，请找回结果', traceId: '', outcome: 'UNKNOWN',
+  });
+  return result.data;
+}
+/** SSE入口集中于API层，调用方拥有连接释放与重连生命周期。 */
+export function openTaskEventStream(): EventSource { return new EventSource('/api/v1/export-tasks/events'); }
+
+/** 复用权威成功文件下载端点，页面不自行拼装协议路径。 */
+export function exportTaskFileUrl(taskId: string): string {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(taskId)) throw new Error('任务标识无效');
+  return `/api/v1/export-tasks/${taskId}/file`;
 }

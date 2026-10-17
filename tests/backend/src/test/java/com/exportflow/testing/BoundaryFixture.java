@@ -1,3 +1,4 @@
+// 本期实施与验证：[任务记录](../../../../../../../../specs/004-task-management/tasks.md)。
 // 规格与进度：[任务记录](../../../../../../../../specs/002-order-management/tasks.md#测试进度与证据)
 package com.exportflow.testing;
 
@@ -39,9 +40,9 @@ public abstract class BoundaryFixture extends ProductionBackendFixture {
   protected Object failure(String code)throws Exception{
     Class<?> type=method(EXECUTION,"complete").getParameterTypes()[1];
     Class<?> failure=Arrays.stream(type.getRecordComponents()).filter(c->c.getName().equals("error")).findFirst().orElseThrow().getType();
-    return record(type,Map.of("kind","KNOWN_FAILURE","error",record(failure,Map.of("code",code,"message","合成测试明确失败"))));
+    return record(type,Map.of("kind","KNOWN_FAILURE","error",record(failure,Map.of("code",code,"message","合成测试明确失败")),"resourcesClosed",false));
   }
-  protected Object unknown()throws Exception{return record(method(EXECUTION,"complete").getParameterTypes()[1],Map.of("kind","UNKNOWN"));}
+  protected Object unknown()throws Exception{return record(method(EXECUTION,"complete").getParameterTypes()[1],Map.of("kind","UNKNOWN","resourcesClosed",false));}
   /** 领取已真实提交，截住返回值防止本轮发布；留给调用者测试崩溃接管窗口。 */
   protected Object reserve(UUID task)throws Exception{
     AtomicReference<Object> captured=new AtomicReference<>();

@@ -2,9 +2,9 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <!-- 规格 function-design-reference.md；TC-217/218真实事务验证。 -->
 <mapper namespace="com.exportflow.exporttasks.infrastructure.persistence.ExportTaskMapper">
-  <sql id="columns">task_id,task_no,scope_type,filter_json,fields_json,total_count,processed_count,status,version,created_at,finished_at,error_code,error_summary,file_name,file_size,result_artifact_id</sql>
+  <sql id="columns">task_id,task_no,scope_type,filter_json,fields_json,total_count,processed_count,status,version,created_at,finished_at,error_code,error_summary,file_name,file_size,result_artifact_id,control_version</sql>
   <insert id="insert">INSERT INTO export_tasks (<include refid="columns"/>) VALUES
-    (#{taskId},#{taskNo},#{scopeType},#{filterJson},#{fieldsJson},#{totalCount},#{processedCount},#{status},#{version},#{createdAt},#{finishedAt},#{errorCode},#{errorSummary},#{fileName},#{fileSize},#{resultArtifactId})</insert>
+    (#{taskId},#{taskNo},#{scopeType},#{filterJson},#{fieldsJson},#{totalCount},#{processedCount},#{status},#{version},#{createdAt},#{finishedAt},#{errorCode},#{errorSummary},#{fileName},#{fileSize},#{resultArtifactId},#{controlVersion})</insert>
   <insert id="insertScopeOrderIds">INSERT INTO export_task_orders(task_id,order_id) VALUES
     <foreach collection="orderIds" item="id" separator=",">(#{taskId},#{id})</foreach></insert>
   <select id="findSummary" resultType="com.exportflow.exporttasks.infrastructure.persistence.ExportTaskRecord">SELECT <include refid="columns"/> FROM export_tasks WHERE task_id=#{value}</select>

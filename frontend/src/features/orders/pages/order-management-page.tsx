@@ -1,3 +1,4 @@
+// 本期实施与验证：[任务记录](../../../../../specs/004-task-management/tasks.md)。
 // 增量实施：[计划](../../../../../specs/003-select-all-filtered/plan.md)、[任务](../../../../../specs/003-select-all-filtered/tasks.md)；[测试](../__tests__/order-management.test.tsx)。
 // 设计：[计划](../../../../../specs/002-order-management/plan.md)。测试：TC-201至TC-212。
 import { useEffect, useMemo } from 'react';
@@ -12,6 +13,7 @@ import { formatHongKongDateTime } from '../../../shared/formatters/date-time';
 import { createExportTask } from '../../../shared/api/api';
 import { isOrderSelected, toSelectionExportScope } from '../models/order-selection';
 import type { CreateExportResponse } from '../../export-tasks/types/export-task.types';
+import { notifyTaskCreated } from '../../../shared/events/task-created';
 
 /** 页面组合查询/选择/提交，成功后只展示创建结果并保留查询。 */
 export function OrderManagementPage() {
@@ -19,6 +21,7 @@ export function OrderManagementPage() {
   const total = orders.pageResult?.total ?? 0;
   const selection = useOrderSelection(`${orders.historyRevision}:${JSON.stringify(orders.query.filter)}`, total);
   function notifyCreated(result: CreateExportResponse) {
+    notifyTaskCreated({ taskId: result.taskId, taskNo: result.taskNo });
     void message.success(<><span>导出任务已创建</span> <span>{result.taskNo}</span></>);
   }
   const exporter = useOrderExport({ createTask: createExportTask, newKey: () => crypto.randomUUID(),

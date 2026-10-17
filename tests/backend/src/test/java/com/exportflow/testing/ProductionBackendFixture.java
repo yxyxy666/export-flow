@@ -1,3 +1,4 @@
+// 本期实施与验证：[任务记录](../../../../../../../../specs/004-task-management/tasks.md)。
 // 规格与进度：[任务记录](../../../../../../../../specs/002-order-management/tasks.md#测试进度与证据)
 package com.exportflow.testing;
 
@@ -209,15 +210,20 @@ public abstract class ProductionBackendFixture {
   }
 
   protected Object port(String portClass, String method, Object... args) throws Exception {
-    return Class.forName(portClass)
-        .getMethod(
-            method,
-            Arrays.stream(Class.forName(portClass).getMethods())
-                .filter(m -> m.getName().equals(method) && m.getParameterCount() == args.length)
-                .findFirst()
-                .orElseThrow()
-                .getParameterTypes())
-        .invoke(app.getBean(Class.forName(portClass)), args);
+    var type = Class.forName(portClass);
+    var boxing = java.util.Map.<Class<?>,Class<?>>of(long.class, Long.class, int.class, Integer.class,
+        boolean.class, Boolean.class);
+    var matches = Arrays.stream(type.getMethods()).filter(candidate -> {
+      if (!candidate.getName().equals(method) || candidate.getParameterCount() != args.length) return false;
+      var parameters = candidate.getParameterTypes();
+      for (int i=0;i<args.length;i++) {
+        if (args[i] == null) { if (parameters[i].isPrimitive()) return false; }
+        else if (!boxing.getOrDefault(parameters[i],parameters[i]).isInstance(args[i])) return false;
+      }
+      return true;
+    }).toList();
+    if (matches.size()!=1) throw new NoSuchMethodException(portClass+"."+method+"：兼容签名数量="+matches.size());
+    return matches.getFirst().invoke(app.getBean(type), args);
   }
 
   protected com.rabbitmq.client.Connection brokerConnection() throws Exception {

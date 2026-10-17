@@ -1,3 +1,4 @@
+// 本期实施与验证：[任务记录](../../../../../../../../specs/004-task-management/tasks.md)。
 // 增量实施：[计划](../../../../../../../../specs/003-select-all-filtered/plan.md)、[任务](../../../../../../../../specs/003-select-all-filtered/tasks.md)；[测试](../../../../../../test/java/com/exportflow/exporttasks/ExportExclusionMySqlTest.java)。
 // 规格互链：[计划](../../../../../../../../specs/002-order-management/plan.md)；[任务与完整映射](../../../../../../../../specs/002-order-management/tasks.md)；验证：[CreationInputBoundaryTest.java](../../../../../../test/java/com/exportflow/exporttasks/CreationInputBoundaryTest.java)、[IdempotencyMySqlTest.java](../../../../../../test/java/com/exportflow/exporttasks/IdempotencyMySqlTest.java)。
 package com.exportflow.exporttasks.domain;
@@ -13,6 +14,8 @@ public final class ExportTaskModels {
   public enum TaskStatus {
     PENDING,
     RUNNING,
+    PAUSING,
+    PAUSED,
     SUCCEEDED,
     FAILED
   }

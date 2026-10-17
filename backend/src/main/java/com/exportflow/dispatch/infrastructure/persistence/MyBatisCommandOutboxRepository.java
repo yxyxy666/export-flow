@@ -1,3 +1,4 @@
+// 本期实施与验证：[任务记录](../../../../../../../../../specs/004-task-management/tasks.md)。
 // 规格互链：[计划](../../../../../../../../../specs/002-order-management/plan.md)；[任务与完整映射](../../../../../../../../../specs/002-order-management/tasks.md)；验证：[CreateTransactionMySqlTest.java](../../../../../../../test/java/com/exportflow/exporttasks/CreateTransactionMySqlTest.java)、[CreationAsyncBoundaryTest.java](../../../../../../../test/java/com/exportflow/exporttasks/CreationAsyncBoundaryTest.java)、[CreationInputBoundaryTest.java](../../../../../../../test/java/com/exportflow/exporttasks/CreationInputBoundaryTest.java)。
 // 职责：Outbox 持久端口适配。
 package com.exportflow.dispatch.infrastructure.persistence;
@@ -170,6 +171,8 @@ public class MyBatisCommandOutboxRepository implements CommandOutboxRepository {
           var task = tasks.lockTask(taskId);
           var record = mapper.lockByTask(taskId.toString());
           if (task == null || record == null) return DispatchOutcome.STALE;
+          if (task.status() == TaskStatus.PAUSING || task.status() == TaskStatus.PAUSED)
+            return DispatchOutcome.STALE;
           var row = converter.toDomain(record);
           Instant now = mapper.databaseNow();
           if (row.status().equals("SENT") || row.status().equals("CLOSED"))

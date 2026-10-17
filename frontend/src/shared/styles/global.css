@@ -21,7 +21,11 @@ a:focus-visible, .ant-menu-item:focus-visible, .ant-menu:focus-visible {
   outline-offset: 3px;
 }
 .return-link { display: inline-block; padding: 8px 16px; }
-.order-management-page { display: grid; gap: 16px; }
+.order-management-page, .task-management-page { display: grid; gap: 16px; min-width: 0; }
+.task-management-page .ant-card { min-width: 0; }
+.task-filter-field { display: flex; flex-direction: column; gap: 4px; }
+.task-repair-info { cursor: help; display: inline-flex; align-items: center; border-radius: 3px; }
+.task-repair-info:focus-visible { outline: 2px solid #1677ff; outline-offset: 2px; }
 .order-filter-form { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 12px 16px; }
 .filter-field { display: flex; flex-direction: column; gap: 4px; }
 .filter-field [role="alert"] { color: #b42318; font-size: 12px; }

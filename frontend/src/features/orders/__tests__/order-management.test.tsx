@@ -1,3 +1,4 @@
+// 本期实施与验证：[任务记录](../../../../../specs/004-task-management/tasks.md)。
 // 规格与进度：[任务记录](../../../../../specs/002-order-management/tasks.md#测试进度与证据)
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
@@ -346,10 +347,12 @@ describe('订单管理页面', () => {
       expect(screen.getByRole('button', { name: '导出筛选结果' })).toBeDisabled();
     } finally { release(); }
   });
-  it('TC-211 离开订单页面中止未完成查询，迟到响应不能污染静态任务页', async () => {
+  it('TC-211 离开订单页面中止未完成查询，迟到响应不能污染任务页', async () => {
     const transport = vi.spyOn(globalThis, 'fetch');
     let release!: () => void; let requestSignal: AbortSignal | undefined;
     const pending = new Promise<void>(resolve => { release = resolve; });
+    server.use(http.get('*/api/v1/export-tasks', () => HttpResponse.json({ items: [],
+      page: 1, pageSize: 20, total: '0', activityVersion: '0', hasActiveTasks: false })));
     server.use(http.get('*/api/v1/orders', async ({ request }) => {
       requestSignal = request.signal; await pending;
       return HttpResponse.json({ items: orders, total: 42, page: 1, pageSize: 20 });

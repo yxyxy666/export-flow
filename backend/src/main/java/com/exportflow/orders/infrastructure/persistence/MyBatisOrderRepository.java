@@ -1,3 +1,4 @@
+// 本期实施与验证：[任务记录](../../../../../../../../../specs/004-task-management/tasks.md)。
 // 增量实施：[计划](../../../../../../../../../specs/003-select-all-filtered/plan.md)、[任务](../../../../../../../../../specs/003-select-all-filtered/tasks.md)；[测试](../../../../../../../test/java/com/exportflow/exporttasks/ExportExclusionMySqlTest.java)。
 // 规格互链：[计划](../../../../../../../../../specs/002-order-management/plan.md)；[任务与完整映射](../../../../../../../../../specs/002-order-management/tasks.md)；验证：[OrderQueryBoundaryTest.java](../../../../../../../test/java/com/exportflow/orders/OrderQueryBoundaryTest.java)、[OrderQueryMySqlTest.java](../../../../../../../test/java/com/exportflow/orders/OrderQueryMySqlTest.java)。
 package com.exportflow.orders.infrastructure.persistence;
@@ -50,6 +51,22 @@ public class MyBatisOrderRepository implements OrderRepository {
     var last =
         rows.isEmpty() ? after : new OrderCursor(rows.getLast().createdAt(), rows.getLast().id());
     return new OrderBatch(rows, last, rows.size() < limit);
+  }
+
+  /** 严格限定原scope与分段上下界，多取一行用于发现源成员增长。 */
+  public List<Order> readSegment(
+      UUID taskId, ExportScope scope, OrderCursor previous, OrderCursor last, int limit) {
+    scope.validate();
+    if (last == null
+        || limit < 1
+        || limit > 1001
+        || previous != null
+            && (last.createdAt().isAfter(previous.createdAt())
+                || last.createdAt().equals(previous.createdAt()) && last.id() >= previous.id()))
+      throw new IllegalArgumentException("分段范围无效");
+    return mapper.readSegment(taskId.toString(), scope, previous, last, limit).stream()
+        .map(converter::toDomain)
+        .toList();
   }
 
   /** 每批最多1000个占位符，空排除不发SQL。 */

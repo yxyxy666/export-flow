@@ -1,3 +1,4 @@
+// 本期实施与验证：[任务记录](../../../../../../../../specs/004-task-management/tasks.md)。
 // 规格互链：[计划](../../../../../../../../specs/002-order-management/plan.md)；[任务与完整映射](../../../../../../../../specs/002-order-management/tasks.md)；验证：[RuntimeCapabilityTest.java](../../../../../../test/java/com/exportflow/RuntimeCapabilityTest.java)、[DeliveryIsolationUnitTest.java](../../../../../../test/java/com/exportflow/worker/DeliveryIsolationUnitTest.java)、[DurabilityGuardTest.java](../../../../../../test/java/com/exportflow/worker/DurabilityGuardTest.java)。
 package com.exportflow.worker.application;
 
@@ -80,7 +81,32 @@ public class ExecutionSupervisor {
     item.heartbeatAt = item.claimedAt;
     // 最后发布lease，监督线程看到执行权时计时字段已完整初始化。
     item.lease = lease;
-    return () -> accepting.get() && item.valid.get() && !Thread.currentThread().isInterrupted();
+    return new ExecutionGuard() {
+      public boolean check() {
+        return stopReason() == StopReason.NONE;
+      }
+
+      public StopReason stopReason() {
+        if (!accepting.get() || !item.valid.get() || Thread.currentThread().isInterrupted())
+          return StopReason.LOST_AUTHORITY;
+        if (item.reason != StopReason.NONE) return item.reason;
+        var control = executions.findControl(lease.taskId());
+        if (control == null || !"KNOWN".equals(control.readOutcome())) return StopReason.UNKNOWN;
+        if ("PAUSING".equals(control.status())
+            && control.controlVersion() > lease.controlVersion()
+            && lease.owner().equals(control.owner())
+            && Objects.equals(lease.fence(), control.fence())) {
+          item.reason = StopReason.USER_PAUSE;
+          return item.reason;
+        }
+        return "RUNNING".equals(control.status())
+                && control.controlVersion() == lease.controlVersion()
+                && lease.owner().equals(control.owner())
+                && Objects.equals(lease.fence(), control.fence())
+            ? StopReason.NONE
+            : StopReason.LOST_AUTHORITY;
+      }
+    };
   }
 
   public void finish(String channelId) {
@@ -98,7 +124,16 @@ public class ExecutionSupervisor {
         if (item.lease != null
             && item.lease.taskId().equals(lease.taskId())
             && item.lease.fence() == lease.fence()
-            && item.lease.owner().equals(lease.owner())) close(item);
+            && item.lease.owner().equals(lease.owner())) {
+          var control = executions.findControl(lease.taskId());
+          if (control != null
+              && "PAUSING".equals(control.status())
+              && lease.owner().equals(control.owner())
+              && Objects.equals(control.fence(), lease.fence())
+              && control.controlVersion() > lease.controlVersion())
+            item.reason = StopReason.USER_PAUSE;
+          else close(item);
+        }
     return result;
   }
 
@@ -117,14 +152,14 @@ public class ExecutionSupervisor {
   public void checkAttempts() {
     long now = System.nanoTime();
     for (var item : deliveries.values())
-      if (item.lease != null && item.valid.get()) {
+      if (item.lease != null && item.valid.get() && item.reason == StopReason.NONE) {
         if (now - item.claimedAt >= Duration.ofMinutes(5).toNanos()) {
           close(item);
           continue;
         }
         if (now - item.heartbeatAt >= Duration.ofSeconds(5).toNanos()) {
           item.heartbeatAt = now;
-          if (heartbeat(item.lease) != LeaseWriteResult.APPLIED) close(item);
+          heartbeat(item.lease);
         }
       }
   }
@@ -174,6 +209,7 @@ public class ExecutionSupervisor {
     volatile ExecutionLease lease;
     volatile long claimedAt, heartbeatAt;
     volatile Runnable closer = () -> {};
+    volatile StopReason reason = StopReason.NONE;
 
     ActiveDelivery(DeliveryContext context, UUID taskId) {
       this.context = context;

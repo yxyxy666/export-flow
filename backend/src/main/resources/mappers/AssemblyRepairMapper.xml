@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 设计 specs/004-task-management/data-model.md；单语句读取完整清单与当前选择快照。 -->
+<mapper namespace="com.exportflow.worker.infrastructure.persistence.AssemblyRepairMapper">
+  <select id="snapshot" resultType="com.exportflow.worker.infrastructure.persistence.AssemblyRepairMapper$SnapshotRow">
+    SELECT t.task_id,COALESCE(c.data_generation,1) AS data_generation,COALESCE(c.checkpoint_version,0) AS checkpoint_version,
+      COALESCE(c.manifest_version,0) AS manifest_version,t.repair_epoch,COALESCE(c.manifest_sealed,FALSE) AS manifest_sealed,
+      COALESCE(c.segment_count,0) AS segment_count,COALESCE(c.manifest_row_count,0) AS manifest_row_count,c.manifest_digest,
+      c.configuration_hash,t.total_count,t.repair_attempt,
+      (SELECT JSON_ARRAYAGG(JSON_OBJECT('sequence',s.sequence,'previousCursor',s.previous_cursor_json,'lastCursor',s.last_cursor_json,
+        'rowCount',s.row_count,'configurationHash',s.configuration_hash,'formatVersion',s.format_version,'contentChecksum',s.content_checksum,
+        'selectionVersion',s.selection_version,'state',s.state,'selectedBlock',IF(b.block_id IS NULL,NULL,JSON_OBJECT(
+          'blockId',b.block_id,'header',JSON_OBJECT('version',b.format_version,'configHash',b.configuration_hash,'generation',b.data_generation,
+            'sequence',b.sequence,'previousCursor',b.previous_cursor_json,'lastCursor',b.last_cursor_json,'rowCount',b.row_count),
+          'storageRef',CAST(b.storage_ref AS JSON),'byteSize',b.byte_size,'checksum',b.checksum))))
+       FROM export_data_segments s LEFT JOIN export_data_blocks b ON b.block_id=s.active_block_id
+         AND b.task_id=s.task_id AND b.data_generation=s.data_generation AND b.sequence=s.sequence
+       WHERE s.task_id=t.task_id AND s.data_generation=c.data_generation) AS segments_json
+    FROM export_tasks t LEFT JOIN export_checkpoints c ON c.task_id=t.task_id WHERE t.task_id=#{value}
+  </select>
+</mapper>

@@ -1,3 +1,4 @@
+// 本期实施与验证：[任务记录](../../../../../specs/004-task-management/tasks.md)。
 // 规格与进度：[任务记录](../../../../../specs/002-order-management/tasks.md#测试进度与证据)
 import { afterEach, describe, expect, it } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
@@ -5,7 +6,8 @@ import userEvent from '@testing-library/user-event';
 import { RouterProvider } from 'react-router-dom';
 import { createAppRouter } from '../../../app/router';
 import { AppProviders } from '../../../app/app-providers';
-import { requests } from '../../../test/handlers';
+import { requests, server } from '../../../test/handlers';
+import { http, HttpResponse } from 'msw';
 
 // [AC-029](../../../../../docs/product/acceptance-criteria.md#ac-029)
 // [AC-041](../../../../../docs/product/acceptance-criteria.md#ac-041)
@@ -22,12 +24,20 @@ describe('TC-212 已有导航回归', () => {
     await waitFor(() => expect(window.location.pathname).toBe('/orders'));
     expect(screen.getByRole('heading', { name: '订单管理' })).toBeVisible();
   });
-  it('菜单进入静态任务页，URL与选中菜单一致且不请求业务API', async () => {
+  // 004增量：[AC-081](../../../../../docs/product/acceptance-criteria.md#ac-081)
+  it('菜单进入任务页，URL与选中菜单一致，只查询任务快照', async () => {
+    server.use(http.get('*/api/v1/export-tasks', ({ request }) => {
+      requests.push({ method: 'GET', url: new URL(request.url) });
+      return HttpResponse.json({ items: [], page: 1, pageSize: 20, total: '0',
+        activityVersion: '0', hasActiveTasks: false });
+    }));
     mount('/export-tasks');
     expect(await screen.findByRole('heading', { name: '任务管理' })).toBeVisible();
     expect(screen.getByRole('menuitem', { name: '任务管理' })).toHaveClass('ant-menu-item-selected');
     expect(window.location.pathname).toBe('/export-tasks');
-    expect(requests).toEqual([]);
+    await waitFor(() => expect(requests).toHaveLength(1));
+    expect(requests[0].method).toBe('GET');
+    expect(requests[0].url.pathname).toBe('/api/v1/export-tasks');
   });
   it('未知地址显示404，可通过键盘返回订单页', async () => {
     mount('/unknown-path');

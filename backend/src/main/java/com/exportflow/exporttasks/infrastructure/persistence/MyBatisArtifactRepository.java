@@ -1,3 +1,4 @@
+// 本期实施与验证：[任务记录](../../../../../../../../../specs/004-task-management/tasks.md)。
 // 规格互链：[计划](../../../../../../../../../specs/002-order-management/plan.md)；[任务与完整映射](../../../../../../../../../specs/002-order-management/tasks.md)；验证：[ArtifactCleanupConcurrencyTest.java](../../../../../../../test/java/com/exportflow/worker/ArtifactCleanupConcurrencyTest.java)、[ArtifactCleanupRaceTest.java](../../../../../../../test/java/com/exportflow/worker/ArtifactCleanupRaceTest.java)。
 package com.exportflow.exporttasks.infrastructure.persistence;
 
@@ -24,6 +25,7 @@ public class MyBatisArtifactRepository implements ArtifactRepository {
   private final CommandOutboxMapper clock;
   private final ObjectMapper json;
   private final TransactionTemplate transaction;
+  private final AssemblyRepairMapper repairs;
 
   public MyBatisArtifactRepository(
       ArtifactMapper artifacts,
@@ -32,13 +34,15 @@ public class MyBatisArtifactRepository implements ArtifactRepository {
       CheckpointMapper checkpoints,
       CommandOutboxMapper clock,
       ObjectMapper json,
-      PlatformTransactionManager manager) {
+      PlatformTransactionManager manager,
+      AssemblyRepairMapper repairs) {
     this.artifacts = artifacts;
     this.tasks = tasks;
     this.executions = executions;
     this.checkpoints = checkpoints;
     this.clock = clock;
     this.json = json;
+    this.repairs = repairs;
     transaction = new TransactionTemplate(manager);
     transaction.setTimeout(5);
   }
@@ -62,12 +66,14 @@ public class MyBatisArtifactRepository implements ArtifactRepository {
     return transaction.execute(
         status -> {
           var task = tasks.lockTask(lease.taskId());
+          clock.lockByTask(lease.taskId().toString());
           var execution = executions.lock(lease.taskId().toString());
           var checkpoint = checkpoints.lock(lease.taskId().toString());
           var now = clock.databaseNow();
           var snapshot = tasks.findSnapshot(lease.taskId()).orElse(null);
           if (task == null
               || task.status() != TaskStatus.RUNNING
+              || task.controlVersion() != lease.controlVersion()
               || execution == null
               || !execution.accepts(lease, now)
               || checkpoint == null
@@ -86,7 +92,11 @@ public class MyBatisArtifactRepository implements ArtifactRepository {
               || !proof.taskId().equals(proof.artifactRef().taskId())
               || proof.artifactRef().generation() != null
               || proof.artifactRef().attemptFence() != null
-              || proof.artifactRef().owner() != null) return LeaseWriteResult.STALE;
+              || proof.artifactRef().owner() != null
+              || !checkpoints.fullyTrusted(lease.taskId().toString(), proof.dataGeneration()))
+            return LeaseWriteResult.STALE;
+          repairs.lockTaskRepairs(lease.taskId().toString());
+          repairs.lockSegments(lease.taskId().toString(), checkpoint.dataGeneration());
           var existing = artifacts.lockArtifact(proof.artifactId().toString());
           var candidate = artifacts.lockCandidate(encode(proof.artifactRef()));
           if (candidate != null && !"OBSERVED".equals(candidate.state()))

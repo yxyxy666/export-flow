@@ -1,10 +1,16 @@
+// 本期实施与验证：[任务记录](../../../../../../../../../specs/004-task-management/tasks.md)。
 // 规格互链：[计划](../../../../../../../../../specs/002-order-management/plan.md)；[任务与完整映射](../../../../../../../../../specs/002-order-management/tasks.md)；验证：[BlockResourceUnitTest.java](../../../../../../../test/java/com/exportflow/worker/BlockResourceUnitTest.java)、[CheckpointInvariantTest.java](../../../../../../../test/java/com/exportflow/worker/CheckpointInvariantTest.java)、[CheckpointRecoveryTest.java](../../../../../../../test/java/com/exportflow/worker/CheckpointRecoveryTest.java)。
 package com.exportflow.worker.infrastructure.file;
 
 import com.exportflow.exporttasks.domain.ExportFileModels.*;
 import com.exportflow.orders.domain.Order;
+import com.exportflow.orders.domain.OrderQuery.OrderCursor;
+import com.exportflow.worker.domain.AssemblyRepairModels.*;
+import com.exportflow.worker.port.ExecutionGuard;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.util.*;
 import org.springframework.stereotype.Component;
@@ -16,6 +22,66 @@ public class DataBlockCodec {
 
   public DataBlockCodec(ObjectMapper json) {
     this.json = json;
+  }
+
+  /** 原始字段固定顺序及长度边界编码，不含块ID或header。 */
+  public String checksumRows(List<Order> rows, int formatVersion) {
+    if (formatVersion != 1 || rows.isEmpty() || rows.size() > 1000)
+      throw new InvalidExportDataException();
+    var hash = digest();
+    for (var row : rows)
+      for (var value :
+          Arrays.asList(
+              Long.toString(row.id()),
+              row.orderNo(),
+              row.customerName(),
+              row.customerPhone(),
+              row.status(),
+              row.channel(),
+              row.amount() == null ? null : row.amount().stripTrailingZeros().toPlainString(),
+              row.currency(),
+              row.region(),
+              row.createdAt() == null ? null : row.createdAt().toString())) {
+        var bytes = value == null ? null : value.getBytes(StandardCharsets.UTF_8);
+        hash.update(ByteBuffer.allocate(4).putInt(bytes == null ? -1 : bytes.length).array());
+        if (bytes != null) hash.update(bytes);
+      }
+    return HexFormat.of().formatHex(hash.digest());
+  }
+
+  /** 读到EOF，同时校验行序、完整header、文件摘要和独立内容基线。调用方负责关闭reader。 */
+  public VerifiedBlock verifyContent(
+      BlockReader reader, BlockRef block, SegmentBaseline expected, ExecutionGuard guard)
+      throws IOException {
+    List<Order> rows = new ArrayList<>();
+    var cursor = block.header().previousCursor();
+    for (var next = reader.next(); next.isPresent(); next = reader.next()) {
+      if (!guard.check()) throw new ExecutionStoppedException();
+      var row = next.get();
+      var actual = new OrderCursor(row.createdAt(), row.id());
+      if (cursor != null
+          && (actual.createdAt().isAfter(cursor.createdAt())
+              || actual.createdAt().equals(cursor.createdAt()) && actual.id() >= cursor.id()))
+        throw new InvalidExportDataException();
+      rows.add(row);
+      cursor = actual;
+      if (rows.size() > 1000) throw new InvalidExportDataException();
+    }
+    var header = block.header();
+    if (rows.size() != header.rowCount() || !Objects.equals(cursor, header.lastCursor()))
+      throw new InvalidExportDataException();
+    var checksum = checksumRows(rows, header.version());
+    var baseline =
+        new SegmentBaseline(
+            header.sequence(),
+            header.previousCursor(),
+            header.lastCursor(),
+            header.rowCount(),
+            header.configHash(),
+            header.version(),
+            checksum);
+    if (expected != null && !expected.equals(baseline)) throw new InvalidExportDataException();
+    return new VerifiedBlock(block, checksum);
   }
 
   public BlockDigest write(BlockHeader header, List<Order> rows, OutputStream output)

@@ -1,11 +1,19 @@
 # 规格：specs/002-order-management/decision-record.md；凭据全部由外部注入。
 server:
   address: 127.0.0.1
-  port: 8080
+  port: ${EXPORT_FLOW_BACKEND_PORT:8080}
   tomcat:
     accesslog:
       enabled: false
 spring:
+  data:
+    redis:
+      host: ${EXPORT_FLOW_REDIS_HOST:127.0.0.1}
+      port: ${EXPORT_FLOW_REDIS_PORT:6379}
+      username: ${EXPORT_FLOW_REDIS_USER:}
+      password: ${EXPORT_FLOW_REDIS_PASSWORD:}
+      connect-timeout: 2s
+      timeout: 2s
   datasource:
     url: ${EXPORT_FLOW_JDBC_URL}
     username: ${EXPORT_FLOW_DB_USER}
@@ -41,10 +49,16 @@ mybatis:
   configuration:
     map-underscore-to-camel-case: true
 export-flow:
+  instance-id: ${EXPORT_FLOW_INSTANCE_ID:local-api}
+  progress-enabled: ${EXPORT_FLOW_PROGRESS_ENABLED:true}
+  progress-cache-prefix: 'export-flow:progress:'
   management-url: ${EXPORT_FLOW_MANAGEMENT_URL:http://127.0.0.1:15672}
   consumer-enabled: false
   file-root: ${EXPORT_FLOW_FILE_ROOT:${user.dir}/export-data}
 management:
+  health:
+    redis:
+      enabled: false
   endpoints:
     web:
       exposure:

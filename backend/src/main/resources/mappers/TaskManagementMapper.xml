@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 设计 specs/004-task-management/contracts/http-sse.md；单SELECT提供空页与全局活动元信息。 -->
+<mapper namespace="com.exportflow.exporttasks.infrastructure.persistence.TaskManagementMapper">
+  <sql id="name">COALESCE(file_name,CONCAT('订单导出_',DATE_FORMAT(CONVERT_TZ(created_at,'+00:00','+08:00'),'%Y%m%d-%H%i%s'),'_',task_no,'.xlsx'))</sql>
+  <sql id="projection">task_id,task_no,scope_type,total_count,trusted_processed_count,status,fields_json,
+    <include refid="name"/> AS file_name,file_size,created_at,finished_at,error_code,error_summary,version,control_version,
+    execution_phase,repair_state,repair_epoch,repair_attempt,repair_reason_code</sql>
+  <select id="findPage" resultType="com.exportflow.exporttasks.infrastructure.persistence.TaskManagementMapper$ListRow">
+    WITH matched AS (SELECT <include refid="projection"/> FROM export_tasks
+      <where><if test="status != null">status=#{status}</if>
+        <if test="keyword != null">AND (task_no COLLATE utf8mb4_0900_as_ci LIKE #{pattern} ESCAPE '!'
+          OR <include refid="name"/> LIKE #{pattern} ESCAPE '!')</if></where>),
+    metadata AS (SELECT (SELECT COUNT(*) FROM matched) AS total,a.version AS activity_version,
+      EXISTS(SELECT 1 FROM export_tasks WHERE status IN ('PENDING','RUNNING','PAUSING')) AS has_active_tasks FROM task_activity a WHERE id=1),
+    paged AS (SELECT * FROM matched ORDER BY created_at DESC,task_id DESC LIMIT #{pageSize} OFFSET #{offset})
+    SELECT p.task_id,p.task_no,p.scope_type,COALESCE(p.total_count,0) AS total_count,COALESCE(p.trusted_processed_count,0) AS trusted_processed_count,
+      p.status,p.fields_json,p.file_name,p.file_size,p.created_at,p.finished_at,p.error_code,p.error_summary,
+      COALESCE(p.version,0) AS version,COALESCE(p.control_version,0) AS control_version,p.execution_phase,p.repair_state,
+      COALESCE(p.repair_epoch,0) AS repair_epoch,COALESCE(p.repair_attempt,0) AS repair_attempt,p.repair_reason_code,
+      m.total,m.activity_version,m.has_active_tasks FROM metadata m LEFT JOIN paged p ON TRUE ORDER BY p.created_at DESC,p.task_id DESC
+  </select>
+  <select id="find" resultType="com.exportflow.exporttasks.infrastructure.persistence.TaskManagementMapper$ListRow">
+    SELECT <include refid="projection"/>,0 AS total,0 AS activity_version,FALSE AS has_active_tasks FROM export_tasks WHERE task_id=#{value}
+  </select>
+</mapper>

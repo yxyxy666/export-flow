@@ -1,3 +1,4 @@
+// 本期实施与验证：[任务记录](../../../../../../../specs/004-task-management/tasks.md)。
 // 规格互链：[计划](../../../../../../../specs/002-order-management/plan.md)；[任务与完整映射](../../../../../../../specs/002-order-management/tasks.md)；验证：[RuntimeConfigurationTest.java](../../../../../test/java/com/exportflow/RuntimeConfigurationTest.java)、[RuntimeMonitorUnitTest.java](../../../../../test/java/com/exportflow/RuntimeMonitorUnitTest.java)、[RuntimeSecurityTest.java](../../../../../test/java/com/exportflow/RuntimeSecurityTest.java)。
 package com.exportflow.config;
 
@@ -52,6 +53,24 @@ public class RuntimeConfiguration {
   @Bean
   public RabbitAdmin exportAdmin(ConnectionFactory factory) {
     return new RabbitAdmin(factory);
+  }
+
+  @Bean
+  public FanoutExchange progressExchange() {
+    return new FanoutExchange("exportflow.progress.v1", true, false);
+  }
+
+  @Bean
+  public Queue progressQueue(RuntimeProperties properties) {
+    properties.validate();
+    return QueueBuilder.durable("exportflow.progress.v1." + properties.getInstanceId())
+        .withArgument("x-queue-type", "classic")
+        .build();
+  }
+
+  @Bean
+  public Binding progressBinding(Queue progressQueue, FanoutExchange progressExchange) {
+    return BindingBuilder.bind(progressQueue).to(progressExchange);
   }
 
   @Bean

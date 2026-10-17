@@ -1,3 +1,4 @@
+// 本期实施与验证：[任务记录](../../../../../../../../specs/004-task-management/tasks.md)。
 // 规格互链：[计划](../../../../../../../../specs/002-order-management/plan.md)；[任务与完整映射](../../../../../../../../specs/002-order-management/tasks.md)；验证：[DownloadBoundaryTest.java](../../../../../../test/java/com/exportflow/worker/DownloadBoundaryTest.java)、[DownloadExportFileTest.java](../../../../../../test/java/com/exportflow/worker/DownloadExportFileTest.java)。
 package com.exportflow.exporttasks.domain;
 
@@ -33,6 +34,13 @@ public final class ExportFileModels {
           || !code.matches("[A-Z0-9_]{1,64}")
           || message == null
           || message.length() > 256) throw new IllegalArgumentException("失败记录无效");
+    }
+  }
+
+  /** 仅在明确停止检查抛出，关闭异常通过suppressed保留，不能伪造已关闭。 */
+  public static class ExecutionStoppedException extends IOException {
+    public ExecutionStoppedException() {
+      super("执行已停止");
     }
   }
 

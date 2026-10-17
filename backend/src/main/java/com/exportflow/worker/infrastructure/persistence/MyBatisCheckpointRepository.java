@@ -1,3 +1,4 @@
+// 本期实施与验证：[任务记录](../../../../../../../../../specs/004-task-management/tasks.md)。
 // 规格互链：[计划](../../../../../../../../../specs/002-order-management/plan.md)；[任务与完整映射](../../../../../../../../../specs/002-order-management/tasks.md)；验证：[BlockResourceUnitTest.java](../../../../../../../test/java/com/exportflow/worker/BlockResourceUnitTest.java)、[CheckpointInvariantTest.java](../../../../../../../test/java/com/exportflow/worker/CheckpointInvariantTest.java)、[CheckpointRecoveryTest.java](../../../../../../../test/java/com/exportflow/worker/CheckpointRecoveryTest.java)。
 package com.exportflow.worker.infrastructure.persistence;
 
@@ -25,6 +26,10 @@ public class MyBatisCheckpointRepository implements CheckpointRepository {
   private final CommandOutboxMapper clock;
   private final ObjectMapper json;
   private final TransactionTemplate transaction;
+  private final com.exportflow.progress.port.ProgressRepository progress;
+  private final AssemblyRepairMapper segments;
+  private final com.exportflow.exporttasks.port.ExportFileStorage storage;
+  private final com.exportflow.worker.infrastructure.file.DataBlockCodec codec;
 
   public MyBatisCheckpointRepository(
       CheckpointMapper checkpoints,
@@ -32,12 +37,20 @@ public class MyBatisCheckpointRepository implements CheckpointRepository {
       ExportTaskRepository tasks,
       CommandOutboxMapper clock,
       ObjectMapper json,
-      PlatformTransactionManager manager) {
+      PlatformTransactionManager manager,
+      com.exportflow.progress.port.ProgressRepository progress,
+      AssemblyRepairMapper segments,
+      com.exportflow.exporttasks.port.ExportFileStorage storage,
+      com.exportflow.worker.infrastructure.file.DataBlockCodec codec) {
     this.checkpoints = checkpoints;
     this.executions = executions;
     this.tasks = tasks;
     this.clock = clock;
     this.json = json;
+    this.progress = progress;
+    this.segments = segments;
+    this.storage = storage;
+    this.codec = codec;
     transaction = new TransactionTemplate(manager);
     transaction.setTimeout(5);
   }
@@ -73,14 +86,31 @@ public class MyBatisCheckpointRepository implements CheckpointRepository {
 
   public CheckpointWriteResult commitBlock(
       ExecutionLease lease, CheckpointSnapshot expected, BlockRef ref) {
+    // 兼容入口也必须先完整读取文件；不能仅从登记元数据制造内容摘要。
+    try (var reader = storage.readBlock(ref)) {
+      return commitBlock(lease, expected, codec.verifyContent(reader, ref, null, () -> true));
+    } catch (java.io.IOException unavailable) {
+      throw new java.io.UncheckedIOException(unavailable);
+    }
+  }
+
+  public CheckpointWriteResult commitBlock(
+      ExecutionLease lease,
+      CheckpointSnapshot expected,
+      com.exportflow.worker.domain.AssemblyRepairModels.VerifiedBlock verified) {
+    var ref = verified.ref();
+    if (verified.contentChecksum() == null || !verified.contentChecksum().matches("[0-9a-f]{64}"))
+      return stale();
     return transaction.execute(
         status -> {
           var task = tasks.lockTask(lease.taskId());
+          clock.lockByTask(lease.taskId().toString());
           var execution = executions.lock(lease.taskId().toString());
           var row = checkpoints.lock(lease.taskId().toString());
           Instant now = clock.databaseNow();
           if (task == null
               || task.status() != TaskStatus.RUNNING
+              || task.controlVersion() != lease.controlVersion()
               || execution == null
               || !execution.accepts(lease, now)) return stale();
           if (row == null) {
@@ -119,10 +149,30 @@ public class MyBatisCheckpointRepository implements CheckpointRepository {
               || ref.byteSize() <= 0
               || !ref.checksum().matches("[0-9a-f]{64}")) return stale();
           checkpoints.insertBlock(record(ref, lease));
+          try {
+            segments.insertSegment(
+                new AssemblyRepairMapper.SegmentRow(
+                    lease.taskId().toString(),
+                    h.generation(),
+                    h.sequence(),
+                    h.previousCursor() == null ? null : json.writeValueAsString(h.previousCursor()),
+                    json.writeValueAsString(h.lastCursor()),
+                    h.rowCount(),
+                    h.configHash(),
+                    h.version(),
+                    verified.contentChecksum(),
+                    ref.blockId().toString(),
+                    0,
+                    0,
+                    "VERIFIED"));
+          } catch (java.io.IOException invalid) {
+            throw new InvalidExportDataException();
+          }
           checkpoints.updateCheckpoint(
               lease.taskId().toString(), next, h.lastCursor().createdAt(), h.lastCursor().id());
           executions.advanceProgressVersion(lease.taskId().toString());
           executions.updateProgress(lease.taskId().toString(), next);
+          progress.recordChange(lease.taskId(), tasks.lockTask(lease.taskId()).version());
           return new CheckpointWriteResult(CheckpointWriteKind.APPLIED, find(lease.taskId()));
         });
   }
@@ -137,18 +187,23 @@ public class MyBatisCheckpointRepository implements CheckpointRepository {
     return transaction.execute(
         status -> {
           var task = tasks.lockTask(lease.taskId());
+          clock.lockByTask(lease.taskId().toString());
           var execution = executions.lock(lease.taskId().toString());
           var row = checkpoints.lock(lease.taskId().toString());
           var now = clock.databaseNow();
           if (task == null
               || task.status() != TaskStatus.RUNNING
+              || task.controlVersion() != lease.controlVersion()
               || execution == null
               || !execution.accepts(lease, now)
               || row == null
               || row.checkpointVersion() != expectedVersion
               || prefix.version() != expectedVersion
-              || prefix.generation() != row.dataGeneration()) return stale();
+              || prefix.generation() != row.dataGeneration()
+              || segments.snapshot(lease.taskId().toString()).manifestSealed()) return stale();
           checkpoints.startGeneration(lease.taskId().toString());
+          segments.phase(lease.taskId().toString(), 0, "COLLECTING", "NONE");
+          progress.recordChange(lease.taskId(), tasks.lockTask(lease.taskId()).version());
           return new CheckpointWriteResult(CheckpointWriteKind.APPLIED, find(lease.taskId()));
         });
   }

@@ -1,3 +1,4 @@
+// 本期实施与验证：[任务记录](../../../../../../../../../specs/004-task-management/tasks.md)。
 // 增量实施：[计划](../../../../../../../../../specs/003-select-all-filtered/plan.md)、[任务](../../../../../../../../../specs/003-select-all-filtered/tasks.md)；[测试](../../../../../../../test/java/com/exportflow/exporttasks/ExportExclusionMySqlTest.java)。
 // 规格互链：[计划](../../../../../../../../../specs/002-order-management/plan.md)；[任务与完整映射](../../../../../../../../../specs/002-order-management/tasks.md)；验证：[CreateTransactionMySqlTest.java](../../../../../../../test/java/com/exportflow/exporttasks/CreateTransactionMySqlTest.java)、[CreationAsyncBoundaryTest.java](../../../../../../../test/java/com/exportflow/exporttasks/CreationAsyncBoundaryTest.java)、[CreationInputBoundaryTest.java](../../../../../../../test/java/com/exportflow/exporttasks/CreationInputBoundaryTest.java)。
 package com.exportflow.exporttasks.infrastructure.persistence;
@@ -41,7 +42,8 @@ public class ExportTaskPersistenceMapper {
           task.errorSummary(),
           task.fileName(),
           task.fileSize(),
-          task.resultArtifactId() == null ? null : task.resultArtifactId().toString());
+          task.resultArtifactId() == null ? null : task.resultArtifactId().toString(),
+          task.controlVersion());
     } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
       throw new IllegalStateException("配置持久化编码失败");
     }
@@ -62,7 +64,8 @@ public class ExportTaskPersistenceMapper {
         row.errorSummary(),
         row.fileName(),
         row.fileSize(),
-        row.resultArtifactId() == null ? null : UUID.fromString(row.resultArtifactId()));
+        row.resultArtifactId() == null ? null : UUID.fromString(row.resultArtifactId()),
+        row.controlVersion());
   }
 
   private List<ExportField> fields(ExportTaskRecord row) {

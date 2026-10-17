@@ -1,3 +1,4 @@
+// 本期实施与验证：[任务记录](../../../../../../../../specs/004-task-management/tasks.md)。
 // 规格互链：[计划](../../../../../../../../specs/002-order-management/plan.md)；[任务与完整映射](../../../../../../../../specs/002-order-management/tasks.md)；验证：[RuntimeCapabilityTest.java](../../../../../../test/java/com/exportflow/RuntimeCapabilityTest.java)、[DeliveryIsolationUnitTest.java](../../../../../../test/java/com/exportflow/worker/DeliveryIsolationUnitTest.java)、[DurabilityGuardTest.java](../../../../../../test/java/com/exportflow/worker/DurabilityGuardTest.java)。
 package com.exportflow.worker.application;
 
@@ -49,6 +50,22 @@ public class TaskExecutionService {
       return result;
     } catch (RuntimeException unreadable) {
       return new ClaimResult(ClaimKind.UNKNOWN, null, null);
+    }
+  }
+
+  public ControlSnapshot findControl(UUID id) {
+    try {
+      return executions.findControl(id);
+    } catch (RuntimeException unknown) {
+      return new ControlSnapshot(null, 0, null, null, null, 0, "UNKNOWN");
+    }
+  }
+
+  public PauseReconcileResult acknowledgePause(PauseProof proof) {
+    try {
+      return executions.acknowledgePause(proof);
+    } catch (RuntimeException unknown) {
+      return new PauseReconcileResult("UNKNOWN");
     }
   }
 }

@@ -1,3 +1,4 @@
+// 本期实施与验证：[任务记录](../../../../../../../../specs/004-task-management/tasks.md)。
 // 规格互链：[计划](../../../../../../../../specs/002-order-management/plan.md)；[任务与完整映射](../../../../../../../../specs/002-order-management/tasks.md)；验证：[CreationInputBoundaryTest.java](../../../../../../test/java/com/exportflow/exporttasks/CreationInputBoundaryTest.java)、[IdempotencyMySqlTest.java](../../../../../../test/java/com/exportflow/exporttasks/IdempotencyMySqlTest.java)。
 package com.exportflow.exporttasks.application;
 
@@ -24,6 +25,7 @@ public class CreateExportTransaction {
   private final CommandOutboxRepository outbox;
   private final ExportRangeService ranges;
   private final CommandOutboxMapper clock;
+  private final com.exportflow.progress.port.ProgressRepository progress;
 
   public CreateExportTransaction(
       PlatformTransactionManager manager,
@@ -31,19 +33,22 @@ public class CreateExportTransaction {
       IdempotencyRepository keys,
       CommandOutboxRepository outbox,
       ExportRangeService ranges,
-      CommandOutboxMapper clock) {
+      CommandOutboxMapper clock,
+      com.exportflow.progress.port.ProgressRepository progress) {
     transaction = new TransactionTemplate(manager);
     this.tasks = tasks;
     this.keys = keys;
     this.outbox = outbox;
     this.ranges = ranges;
     this.clock = clock;
+    this.progress = progress;
   }
 
   public CreateTaskResult commit(CanonicalSubmission submission) {
     return Objects.requireNonNull(
         transaction.execute(
             status -> {
+              progress.lockActivity();
               var existing = keys.findByKeyHash(submission.keyHash());
               if (existing.isPresent()) {
                 if (existing.get().canonicalVersion() != submission.version()
@@ -67,6 +72,7 @@ public class CreateExportTransaction {
               tasks.insert(task, submission.scope(), submission.fields());
               keys.insert(submission, task.taskId());
               outbox.insert(task.taskId(), identity.eventId(), now);
+              progress.recordChange(task.taskId(), task.version());
               return new CreateTaskResult(tasks.findSummary(task.taskId()).orElseThrow(), false);
             }));
   }

@@ -12,5 +12,5 @@
   <update id="scheduleRetry">UPDATE command_outbox SET status='READY',next_attempt_at=#{nextAt},last_error_code=#{safeCode},lease_owner=NULL,lease_token=NULL,lease_until=NULL WHERE event_id=#{eventId} AND status='LEASED' AND lease_token=#{token}</update>
   <update id="finishAttempt">UPDATE dispatch_attempts SET finished_at=#{now},outcome=#{outcome},safe_error=#{safeCode} WHERE event_id=#{eventId} AND attempt_no=#{attempt} AND lease_token=#{token} AND finished_at IS NULL</update>
   <select id="findExpired" resultType="string">SELECT task_id FROM command_outbox WHERE status IN ('READY','LEASED') AND dispatch_deadline&lt;=UTC_TIMESTAMP(3) ORDER BY dispatch_deadline,event_id LIMIT #{limit}</select>
-  <update id="close">UPDATE command_outbox SET status='CLOSED',closed_at=#{now},close_reason=#{reason},lease_owner=NULL,lease_token=NULL,lease_until=NULL WHERE event_id=#{eventId} AND status IN ('READY','LEASED')</update>
+  <update id="close">UPDATE command_outbox SET status='CLOSED',closed_at=#{now},close_reason=#{reason},lease_owner=NULL,lease_token=NULL,lease_until=NULL WHERE event_id=#{eventId} AND (status IN ('READY','LEASED') OR (#{reason}='USER_PAUSED' AND status='SENT'))</update>
 </mapper>
