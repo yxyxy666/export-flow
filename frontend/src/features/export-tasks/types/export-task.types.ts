@@ -40,7 +40,7 @@ export interface TaskListItem {
   processedCount: number; progressPercent: number; status: string; fields: ExportField[];
   fileName: string; fileSize: string | null; createdAt: string; finishedAt: string | null;
   errorCode: string | null; errorSummary: string | null; version: string; controlVersion: string;
-  allowedActions: ('PAUSE' | 'DOWNLOAD')[];
+  allowedActions: ('PAUSE' | 'RESUME' | 'DOWNLOAD')[];
   executionPhase: 'NOT_STARTED' | 'COLLECTING' | 'CHECKING' | 'REBUILDING' | 'ASSEMBLING' | 'COMPLETE';
   repairState: 'NONE' | 'CHECKING' | 'REBUILDING' | 'PAUSING' | 'PAUSED' | 'FAILED';
   repairEpoch: string; repairAttempt: number; repairReasonCode: string | null;

@@ -1,3 +1,4 @@
+// 本次增量：[计划](../../../../../../../../specs/005-task-resume-and-live-progress/plan.md)。
 // 设计：[任务模型](../../../../../../../../specs/004-task-management/data-model.md)。
 package com.exportflow.exporttasks.domain;
 
@@ -78,4 +79,14 @@ public final class TaskManagementModels {
   }
 
   public record PauseResult(String outcome, TaskListItem task) {}
+
+  /** 显式继续使用独立动作身份，不能自动解除暂停屏障。 */
+  public record ResumeRequest(UUID taskId, UUID operationId, long expectedControlVersion) {
+    public ResumeRequest {
+      if (taskId == null || operationId == null || expectedControlVersion < 0)
+        throw new IllegalArgumentException("继续请求无效");
+    }
+  }
+
+  public record ResumeResult(String outcome, TaskListItem task) {}
 }

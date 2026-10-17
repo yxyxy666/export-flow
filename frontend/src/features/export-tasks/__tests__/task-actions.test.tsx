@@ -1,3 +1,4 @@
+// 本次增量：[计划](../../../../../specs/005-task-resume-and-live-progress/plan.md)。
 // [规格与进度](../../../../../specs/004-task-management/tasks.md#测试进度与证据)
 // [AC-013](../../../../../docs/product/acceptance-criteria.md#ac-013)
 // [AC-014](../../../../../docs/product/acceptance-criteria.md#ac-014)
@@ -66,7 +67,7 @@ describe('TC-404/407/408 暂停幂等与下载边界', () => {
     expect(screen.queryByRole('button', { name: '暂停' })).not.toBeInTheDocument();
     expect(screen.getByText('100%')).toBeVisible();
   });
-  it('已暂停不开放半成品下载，也不提供预留CRUD、重试或继续入口', async () => {
+  it('已暂停不开放半成品下载，未获服务端继续授权时不开放继续', async () => {
     installTasks(page([{ ...task, status: 'PAUSED', allowedActions: [] }], { hasActiveTasks: false }));
     mountTasks(); await visibleTask();
     expect(screen.queryByRole('link', { name: '下载' })).not.toBeInTheDocument();

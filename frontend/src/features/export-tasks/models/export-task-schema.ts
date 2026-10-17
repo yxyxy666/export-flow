@@ -1,3 +1,4 @@
+// 本次增量：[计划](../../../../../specs/005-task-resume-and-live-progress/plan.md)。
 // 本期实施与验证：[任务记录](../../../../../specs/004-task-management/tasks.md)。
 // 增量实施：[计划](../../../../../specs/003-select-all-filtered/plan.md)、[任务](../../../../../specs/003-select-all-filtered/tasks.md)；[测试](../../orders/__tests__/order-management.test.tsx)。
 // 设计：[HTTP契约](../../../../../specs/002-order-management/contracts/http-api.md)。
@@ -37,7 +38,7 @@ export const taskListItemSchema = z.strictObject({
   progressPercent: z.number().int().min(0).max(100), status: z.string().min(1).max(64), fields: exportFieldsSchema,
   fileName: z.string().min(1).max(255), fileSize: taskVersionSchema.nullable(), createdAt: utcInstantSchema,
   finishedAt: utcInstantSchema.nullable(), errorCode: z.string().max(128).nullable(), errorSummary: z.string().max(255).nullable(),
-  version: taskVersionSchema, controlVersion: taskVersionSchema, allowedActions: z.array(z.enum(['PAUSE', 'DOWNLOAD'])),
+  version: taskVersionSchema, controlVersion: taskVersionSchema, allowedActions: z.array(z.enum(['PAUSE', 'RESUME', 'DOWNLOAD'])),
   executionPhase: z.enum(['NOT_STARTED', 'COLLECTING', 'CHECKING', 'REBUILDING', 'ASSEMBLING', 'COMPLETE']),
   repairState: z.enum(['NONE', 'CHECKING', 'REBUILDING', 'PAUSING', 'PAUSED', 'FAILED']),
   repairEpoch: taskVersionSchema, repairAttempt: z.number().int().min(0).max(3), repairReasonCode: z.string().max(128).nullable(),

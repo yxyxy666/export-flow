@@ -1,3 +1,4 @@
+// 本次增量：[计划](../../../../../../../../specs/005-task-resume-and-live-progress/plan.md)。
 // 本期实施与验证：[任务记录](../../../../../../../../specs/004-task-management/tasks.md)。
 // 规格互链：[计划](../../../../../../../../specs/002-order-management/plan.md)；[任务与完整映射](../../../../../../../../specs/002-order-management/tasks.md)；验证：[BlockResourceUnitTest.java](../../../../../../test/java/com/exportflow/worker/BlockResourceUnitTest.java)、[CheckpointInvariantTest.java](../../../../../../test/java/com/exportflow/worker/CheckpointInvariantTest.java)、[CheckpointRecoveryTest.java](../../../../../../test/java/com/exportflow/worker/CheckpointRecoveryTest.java)。
 package com.exportflow.worker.application;
@@ -58,6 +59,8 @@ public class ExportDataCollectionService {
     try {
       validatePrefix(snapshot, config, guard);
     } catch (InvalidExportDataException corrupted) {
+      // 继续期间不再允许旧前缀分支全量换代；独立基线已由恢复审计负责。
+      if (context.lease().controlVersion() > 0) throw corrupted;
       var prefix =
           new TrustedPrefix(snapshot.generation(), snapshot.version(), List.of(), null, 0, true);
       var restarted = checkpoints.startGeneration(context.lease(), snapshot.version(), prefix);

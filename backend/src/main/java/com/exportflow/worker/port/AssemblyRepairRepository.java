@@ -1,3 +1,4 @@
+// 本次增量：[计划](../../../../../../../../specs/005-task-resume-and-live-progress/plan.md)。
 // 设计：[选择性修复事务](../../../../../../../../specs/004-task-management/function-design.md)。
 package com.exportflow.worker.port;
 
@@ -9,6 +10,8 @@ public interface AssemblyRepairRepository {
   RepairSnapshot load(UUID taskId);
 
   RepairWriteResult markChecking(ExecutionLease lease);
+
+  RepairWriteResult markCollecting(ExecutionLease lease, AssemblyAudit audit);
 
   RepairWriteResult sealManifest(
       ExecutionLease lease, RepairSnapshot expected, List<SegmentBaseline> baselines);

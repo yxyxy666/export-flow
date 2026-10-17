@@ -1,3 +1,4 @@
+// 本次增量：[计划](../../../../specs/005-task-resume-and-live-progress/plan.md)。
 // 本期实施与验证：[任务记录](../../../../specs/004-task-management/tasks.md)。
 // 设计：[统一API函数](../../../../specs/002-order-management/function-design-reference.md#frontendsrcsharedapiapits)。
 // 验证：[API测试](../../features/orders/__tests__/order-api.test.ts)，TC-210/211。
@@ -68,6 +69,18 @@ export async function pauseExportTask(taskId: string, request: PauseRequest, sig
   }));
   if (!result.success) throw new ApiRequestError('protocol', {
     code: 'INVALID_RESPONSE', message: '暂停结果尚未确认，请找回结果', traceId: '', outcome: 'UNKNOWN',
+  });
+  return result.data;
+}
+/** 继续使用相同控制协议，结果不明仍保留调用方原动作和操作ID。 */
+export async function resumeExportTask(taskId: string, request: PauseRequest, signal?: AbortSignal): Promise<PauseResult> {
+  const input = pauseRequestSchema.parse(request);
+  if (!/^[0-9a-f-]{36}$/i.test(taskId)) throw new Error('任务标识无效');
+  const result = pauseResultSchema.safeParse(await requestJson(`/api/v1/export-tasks/${taskId}/resume`, {
+    method: 'POST', body: input, signal,
+  }));
+  if (!result.success) throw new ApiRequestError('protocol', {
+    code: 'INVALID_RESPONSE', message: '继续结果尚未确认，请找回结果', traceId: '', outcome: 'UNKNOWN',
   });
   return result.data;
 }

@@ -1,3 +1,4 @@
+// 本次增量：[计划](../../../../../../../../specs/005-task-resume-and-live-progress/plan.md)。
 // 设计：[装配审计与选择性重建](../../../../../../../../specs/004-task-management/contracts/assembly-repair.md)。
 package com.exportflow.worker.application;
 
@@ -20,16 +21,19 @@ public class AssemblyRepairService {
   private final DataBlockCodec codec;
   private final AssemblyRepairRepository repairs;
   private final ExportDataCollectionService collection;
+  private final CheckpointRepository checkpoints;
 
   public AssemblyRepairService(
       ExportFileStorage storage,
       DataBlockCodec codec,
       AssemblyRepairRepository repairs,
-      ExportDataCollectionService collection) {
+      ExportDataCollectionService collection,
+      CheckpointRepository checkpoints) {
     this.storage = storage;
     this.codec = codec;
     this.repairs = repairs;
     this.collection = collection;
+    this.checkpoints = checkpoints;
   }
 
   /** 对整个封存集合完成审计，再形成可信行数，不因遇到第一个坏段提前停止。 */
@@ -37,10 +41,68 @@ public class AssemblyRepairService {
       GenerationContext context, RepairSnapshot snapshot, RepairIssue trigger, ExecutionGuard guard)
       throws IOException {
     if (!guard.check()) throw new ExecutionStoppedException();
+    if (!validManifest(context, snapshot))
+      return new AssemblyAudit(
+          snapshot, trigger, List.of(), List.of(), 0, "DATA_REPAIR_UNRECOVERABLE");
+    return auditBlocks(snapshot, trigger, guard);
+  }
+
+  /** 部分收集以持久断点为边界，不能把任务总量当作已完成区间。 */
+  public AssemblyAudit auditPrefix(
+      GenerationContext context,
+      RepairSnapshot snapshot,
+      CheckpointSnapshot checkpoint,
+      ExecutionGuard guard)
+      throws IOException {
+    if (!guard.check()) throw new ExecutionStoppedException();
+    if (snapshot == null
+        || snapshot.manifestSealed()
+        || !snapshot.taskId().equals(context.lease().taskId())
+        || !snapshot.taskId().equals(checkpoint.taskId())
+        || snapshot.dataGeneration() != checkpoint.generation()
+        || snapshot.checkpointVersion() != checkpoint.version()
+        || !Objects.equals(snapshot.configurationHash(), context.snapshot().configurationHash())
+        || !Objects.equals(checkpoint.configurationHash(), snapshot.configurationHash())
+        || checkpoint.verifiedPrefixCount() > snapshot.totalCount()
+        || !validSegments(snapshot, checkpoint.verifiedPrefixCount(), checkpoint.cursor(), true))
+      return new AssemblyAudit(
+          snapshot, null, List.of(), List.of(), 0, "DATA_REPAIR_UNRECOVERABLE");
+    return auditBlocks(snapshot, null, guard);
+  }
+
+  /** 显式继续先审计已提交部分；健康段保留，坏段修复后再放行尾部收集。 */
+  public void prepareResume(
+      GenerationContext context, AttemptWorkspace workspace, ExecutionGuard guard)
+      throws IOException {
+    if (context.lease().controlVersion() == 0) return;
+    var checkpoint = checkpoints.find(context.lease().taskId());
+    var snapshot = repairs.load(context.lease().taskId());
+    if (checkpoint.version() == 0) {
+      if (context.snapshot().task().processedCount() != 0)
+        throw new InvalidExportDataException("DATA_REPAIR_UNRECOVERABLE");
+      return;
+    }
+    if (snapshot != null && snapshot.manifestSealed()) return;
+    if (repairs.markChecking(context.lease()).kind() != RepairWriteKind.APPLIED)
+      throw new IOException("恢复核验授权尚未确认");
+    while (true) {
+      var audit = auditPrefix(context, snapshot, checkpoint, guard);
+      if (audit.fatalReason() != null) throw new InvalidExportDataException(audit.fatalReason());
+      if (audit.damagedSegments().isEmpty()) {
+        if (repairs.markCollecting(context.lease(), audit).kind() != RepairWriteKind.APPLIED)
+          throw new IOException("恢复核验提交尚未确认");
+        return;
+      }
+      rebuild(context, audit, workspace, guard);
+      checkpoint = checkpoints.find(context.lease().taskId());
+      snapshot = repairs.load(context.lease().taskId());
+    }
+  }
+
+  private AssemblyAudit auditBlocks(
+      RepairSnapshot snapshot, RepairIssue trigger, ExecutionGuard guard) throws IOException {
     List<SegmentRef> healthy = new ArrayList<>(), damaged = new ArrayList<>();
     long trusted = 0;
-    if (!validManifest(context, snapshot))
-      return new AssemblyAudit(snapshot, trigger, healthy, damaged, 0, "DATA_REPAIR_UNRECOVERABLE");
     RepairIssue reason = trigger;
     for (var segment : snapshot.segments()) {
       if (!guard.check()) throw new ExecutionStoppedException();
@@ -81,6 +143,13 @@ public class AssemblyRepairService {
         || snapshot.segmentCount() != snapshot.segments().size()
         || snapshot.segments().isEmpty()
         || snapshot.manifestRowCount() != context.snapshot().task().totalCount()) return false;
+    return validSegments(snapshot, snapshot.totalCount(), null, false)
+        && manifestDigest(snapshot.segments().stream().map(SegmentRef::baseline).toList())
+            .equals(snapshot.manifestDigest());
+  }
+
+  private boolean validSegments(
+      RepairSnapshot snapshot, long expectedRows, OrderCursor lastCursor, boolean checkCursor) {
     OrderCursor previous = null;
     int sequence = 0;
     long rows = 0;
@@ -101,9 +170,7 @@ public class AssemblyRepairService {
       rows += segment.rowCount();
       previous = segment.lastCursor();
     }
-    return rows == snapshot.totalCount()
-        && manifestDigest(snapshot.segments().stream().map(SegmentRef::baseline).toList())
-            .equals(snapshot.manifestDigest());
+    return rows == expectedRows && (!checkCursor || Objects.equals(previous, lastCursor));
   }
 
   /** 使用持久轮次；提交不明通过同epoch/sequence找回，不重复累计可信行数。 */

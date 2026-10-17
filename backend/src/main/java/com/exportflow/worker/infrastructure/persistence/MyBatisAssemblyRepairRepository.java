@@ -1,3 +1,4 @@
+// 本次增量：[计划](../../../../../../../../../specs/005-task-resume-and-live-progress/plan.md)。
 // 设计：[选择性修复事务](../../../../../../../../../specs/004-task-management/contracts/assembly-repair.md)。
 package com.exportflow.worker.infrastructure.persistence;
 
@@ -169,8 +170,7 @@ public class MyBatisAssemblyRepairRepository implements AssemblyRepairRepository
         status -> {
           var current = lock(lease);
           if (!same(current, audit.snapshot())) return result(RepairWriteKind.STALE);
-          if (audit.fatalReason() != null || !current.manifestSealed())
-            return result(RepairWriteKind.FATAL);
+          if (audit.fatalReason() != null) return result(RepairWriteKind.FATAL);
           if (audit.damagedSegments().isEmpty() && audit.triggerIssue() == null)
             return result(RepairWriteKind.STALE);
           String roundState = mapper.lockRepair(lease.taskId().toString(), current.repairEpoch());
@@ -356,6 +356,28 @@ public class MyBatisAssemblyRepairRepository implements AssemblyRepairRepository
               "ASSEMBLING",
               current.repairAttempt() > 0 ? "REBUILDING" : "NONE");
           mapper.assembling(lease.taskId().toString(), current.repairEpoch());
+          changed(lease.taskId());
+          return result(RepairWriteKind.APPLIED);
+        });
+  }
+
+  /** 审计快照仍有效且全部登记前缀可信才放行收集，不把历史高水位充作可信量。 */
+  public RepairWriteResult markCollecting(ExecutionLease lease, AssemblyAudit audit) {
+    return transaction.execute(
+        status -> {
+          var current = lock(lease);
+          if (!same(current, audit.snapshot())
+              || current.manifestSealed()
+              || audit.fatalReason() != null
+              || !audit.damagedSegments().isEmpty()) return result(RepairWriteKind.STALE);
+          var checkpoint = checkpoints.lock(lease.taskId().toString());
+          if (checkpoint == null || checkpoint.verifiedPrefixCount() != audit.trustedRows())
+            return result(RepairWriteKind.STALE);
+          mapper.phase(
+              lease.taskId().toString(),
+              audit.trustedRows(),
+              "COLLECTING",
+              current.repairAttempt() > 0 ? "REBUILDING" : "NONE");
           changed(lease.taskId());
           return result(RepairWriteKind.APPLIED);
         });

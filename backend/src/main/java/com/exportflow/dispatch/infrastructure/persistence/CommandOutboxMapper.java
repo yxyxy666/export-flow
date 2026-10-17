@@ -1,3 +1,4 @@
+// 本次增量：[计划](../../../../../../../../../specs/005-task-resume-and-live-progress/plan.md)。
 // 本期实施与验证：[任务记录](../../../../../../../../../specs/004-task-management/tasks.md)。
 // 规格互链：[计划](../../../../../../../../../specs/002-order-management/plan.md)；[任务与完整映射](../../../../../../../../../specs/002-order-management/tasks.md)；验证：[CreateTransactionMySqlTest.java](../../../../../../../test/java/com/exportflow/exporttasks/CreateTransactionMySqlTest.java)、[CreationAsyncBoundaryTest.java](../../../../../../../test/java/com/exportflow/exporttasks/CreationAsyncBoundaryTest.java)、[CreationInputBoundaryTest.java](../../../../../../../test/java/com/exportflow/exporttasks/CreationInputBoundaryTest.java)。
 // 职责：Outbox 持久记录与 SQL 映射。
@@ -10,6 +11,11 @@ import org.apache.ibatis.annotations.*;
 /** 以数据库时间创建受理窗口；设计 data-model.md，验证 TC-218/222。 */
 @Mapper
 public interface CommandOutboxMapper {
+  /** 仅显式继续事务可重开原命令；旧投递token和历史尝试不得复用。 */
+  @Update(
+      "UPDATE command_outbox SET status='READY',dispatch_deadline=TIMESTAMPADD(MINUTE,10,UTC_TIMESTAMP(3)),next_attempt_at=UTC_TIMESTAMP(3),lease_owner=NULL,lease_token=NULL,lease_until=NULL,sent_at=NULL,closed_at=NULL,close_reason=NULL,last_error_code=NULL WHERE task_id=#{taskId} AND status='CLOSED' AND close_reason='USER_PAUSED'")
+  int reopen(String taskId);
+
   @Select(
       "SELECT EXISTS(SELECT 1 FROM command_outbox WHERE task_id=#{taskId} AND status='CLOSED' AND close_reason='USER_PAUSED')")
   boolean pausedSealed(String taskId);

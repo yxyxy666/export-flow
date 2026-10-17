@@ -14,7 +14,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 /** 每个版本路径使用独立真实MySQL；不修改来源订单或已发布迁移。 */
 class TaskManagementMigrationTest {
   @ParameterizedTest
-  @ValueSource(ints = {0, 4, 5})
+  @ValueSource(ints = {0, 4, 5, 6})
   void TC409_emptyAndSupportedUpgradePreserveTasksAndBackfillTrustedProgress(int previous)
       throws Exception {
     try (var mysql = SharedServices.mysql()) {
@@ -83,7 +83,11 @@ class TaskManagementMigrationTest {
                   + "',file_name='success.xlsx',file_size=300 WHERE task_id='"
                   + successfulId
                   + "'");
-          if (previous == 5) {
+          // V6成功记录已具有可信计数；V7只新增回执，不再做V6的数据回填。
+          if (previous == 6)
+            statement.executeUpdate(
+                "UPDATE export_tasks SET trusted_processed_count=total_count WHERE status='SUCCEEDED'");
+          if (previous >= 5) {
             var paused = UUID.randomUUID().toString();
             statement.executeUpdate(
                 "INSERT INTO export_tasks(task_id,task_no,scope_type,fields_json,total_count,status,created_at) VALUES('"
@@ -97,7 +101,7 @@ class TaskManagementMigrationTest {
               .dataSource(mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword())
               .load();
       latest.migrate();
-      assertThat(latest.info().current().getVersion().toString()).isEqualTo("6");
+      assertThat(latest.info().current().getVersion().toString()).isEqualTo("7");
       try (var connection = mysql.getAdminConnection();
           var statement = connection.createStatement()) {
         if (previous > 0)
@@ -143,7 +147,7 @@ class TaskManagementMigrationTest {
               assertThat(rows.next()).isTrue();
             }
           }
-          if (previous == 5)
+          if (previous >= 5)
             try (var rows =
                 statement.executeQuery(
                     "SELECT task_id FROM export_tasks WHERE task_no='EXP_MIGRATION_PAUSED' AND status='PAUSED' AND trusted_processed_count=0")) {

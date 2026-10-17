@@ -53,7 +53,7 @@ READ COMMITTED、固定锁序/SKIP LOCKED、经典持久队列/正确路由证�
 
 负责人于2026-10-14明确“仅做列表/SSE/暂停，增删改先预留”，2026-10-17增加同任务装配对账、选择性重建、可信进度重算及黄色提示，并以“可以按照当前规格开始了”批准[004规格0.3](../specs/004-task-management/spec.md)及其附属文档。[暂停ADR](adr/0010-task-pause-control-barrier.md)、[修复ADR](adr/0011-selective-block-repair-and-progress.md)、3轮持久预算、本地SSE发送队列上限256与本期排除范围均随规格接受，不再列为技术待选项。
 
-状态与设计归产品／验收、ADR和功能规格维护。本期只复用负责人现有基础设施；增删改、失败后用户手动重试与用户继续仍预留。项目级效率规则草案仍独立待审批。
+状态与设计归产品／验收、ADR和功能规格维护。本期只复用负责人现有基础设施；增删改、失败后用户手动重试仍预留。2026-10-17用户继续已明确纳入[005增量](../specs/005-task-resume-and-live-progress/spec.md)，并明确预授权规格→补测试→实施无需再次等待；见[授权依据](../specs/005-task-resume-and-live-progress/tasks.md#审批记录)。项目级效率规则草案仍独立待审批。
 
 已完成测试先行、获批生产实施及适用验证，历史未触达分支和六类功能缺口已补证，见[证据](validation/004-task-management/verification.md#最终功能与质量结果)与[覆盖缺口](validation/004-task-management/coverage-gaps.md)。负责人已批准测试阶段与缺口处理方案；性能及计时排除保持未验证，已决不等于免验或负责人产品验收通过。
 

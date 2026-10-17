@@ -1,3 +1,4 @@
+// 本次增量：[计划](../../../../../specs/005-task-resume-and-live-progress/plan.md)。
 // 设计与验证：[修复展示](../../../../../specs/004-task-management/contracts/assembly-repair.md)。
 import { Button, Progress, Space, Table, Tooltip, theme } from 'antd';
 import { getTaskActions } from '../models/task-list-model';
@@ -14,7 +15,8 @@ function repairHint(task: TaskListItem): string | undefined {
   if (task.repairState === 'CHECKING' || task.executionPhase === 'CHECKING') return '正在校验文件';
 }
 /** 表格只呈现ViewModel与已校验动作，下载路径使用既有同源端点。 */
-export function TaskTable({ rows, isBusy, onPause }: { rows: TaskListItem[]; isBusy: boolean; onPause(task: TaskListItem): void }) {
+export function TaskTable({ rows, isBusy, onPause, onResume }: { rows: TaskListItem[]; isBusy: boolean;
+  onPause(task: TaskListItem): void; onResume?(task: TaskListItem): void }) {
   const { token } = theme.useToken();
   return <Table<TaskListItem> rowKey="taskId" dataSource={rows} pagination={false}
     locale={{ emptyText: '暂无匹配任务' }} scroll={{ x: 1350 }} columns={[
@@ -39,6 +41,7 @@ export function TaskTable({ rows, isBusy, onPause }: { rows: TaskListItem[]; isB
       { title: '操作', width: 100, fixed: 'right', render: (_, task) => {
         const actions = getTaskActions(task);
         return actions.canPause ? <Button size="small" disabled={isBusy} onClick={() => onPause(task)}>暂停</Button>
+          : actions.canResume ? <Button size="small" disabled={isBusy || !onResume} onClick={() => onResume?.(task)}>继续</Button>
           : actions.canDownload ? <a href={exportTaskFileUrl(task.taskId)}>下载</a> : <span>{actions.unavailableReason}</span>;
       } },
     ]} />;

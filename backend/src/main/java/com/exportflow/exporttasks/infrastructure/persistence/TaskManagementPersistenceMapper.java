@@ -1,3 +1,4 @@
+// 本次增量：[计划](../../../../../../../../../specs/005-task-resume-and-live-progress/plan.md)。
 // 设计：[权威摘要](../../../../../../../../../specs/004-task-management/data-model.md)。
 package com.exportflow.exporttasks.infrastructure.persistence;
 
@@ -30,7 +31,7 @@ public class TaskManagementPersistenceMapper {
               ? List.of("DOWNLOAD")
               : Set.of(TaskStatus.PENDING, TaskStatus.RUNNING).contains(status)
                   ? List.of("PAUSE")
-                  : List.<String>of();
+                  : status == TaskStatus.PAUSED ? List.of("RESUME") : List.<String>of();
       return new TaskListItem(
           UUID.fromString(row.taskId()),
           row.taskNo(),

@@ -1,3 +1,4 @@
+// 本次增量：[计划](../../../../../../../../specs/005-task-resume-and-live-progress/plan.md)。
 // 设计：[HTTP契约](../../../../../../../../specs/004-task-management/contracts/http-sse.md)。
 package com.exportflow.exporttasks.api;
 
@@ -43,4 +44,6 @@ public final class TaskManagementApiModels {
       boolean hasActiveTasks) {}
 
   public record PauseResultDto(String outcome, TaskDto task) {}
+
+  public record ResumeResultDto(String outcome, TaskDto task) {}
 }

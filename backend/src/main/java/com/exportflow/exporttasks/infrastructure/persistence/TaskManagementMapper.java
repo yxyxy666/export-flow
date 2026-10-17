@@ -1,3 +1,4 @@
+// 本次增量：[计划](../../../../../../../../../specs/005-task-resume-and-live-progress/plan.md)。
 // 设计：[列表单语句与暂停事务](../../../../../../../../../specs/004-task-management/function-design.md)。
 package com.exportflow.exporttasks.infrastructure.persistence;
 
@@ -8,6 +9,23 @@ import org.apache.ibatis.annotations.*;
 
 @Mapper
 public interface TaskManagementMapper {
+  @Select(
+      "SELECT operation_id,task_id,request_hash,expected_control_version FROM task_resume_operations WHERE operation_id=#{id}")
+  OperationRow resumeOperation(String id);
+
+  @Insert(
+      "INSERT INTO task_resume_operations(operation_id,task_id,request_hash,expected_control_version,result_json,created_at) VALUES(#{operation},#{task},#{hash},#{expected},#{result},UTC_TIMESTAMP(3))")
+  int insertResumeOperation(
+      @Param("operation") String operation,
+      @Param("task") String task,
+      @Param("hash") byte[] hash,
+      @Param("expected") long expected,
+      @Param("result") String result);
+
+  @Update(
+      "UPDATE export_tasks SET status='PENDING',control_version=control_version+1,version=version+1,pause_requested_at=NULL,paused_at=NULL,execution_phase='CHECKING',repair_state=IF(repair_attempt>0,'REBUILDING','CHECKING') WHERE task_id=#{id} AND status='PAUSED' AND control_version=#{expected}")
+  int resume(@Param("id") String id, @Param("expected") long expected);
+
   List<ListRow> findPage(TaskQuery query);
 
   ListRow find(String taskId);

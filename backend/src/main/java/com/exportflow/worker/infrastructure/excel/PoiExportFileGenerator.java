@@ -1,3 +1,4 @@
+// 本次增量：[计划](../../../../../../../../../specs/005-task-resume-and-live-progress/plan.md)。
 // 本期实施与验证：[任务记录](../../../../../../../../../specs/004-task-management/tasks.md)。
 // 规格互链：[计划](../../../../../../../../../specs/002-order-management/plan.md)；[任务与完整映射](../../../../../../../../../specs/002-order-management/tasks.md)；验证：[RuntimeCapabilityTest.java](../../../../../../../test/java/com/exportflow/RuntimeCapabilityTest.java)、[GeneratorBoundaryTest.java](../../../../../../../test/java/com/exportflow/worker/GeneratorBoundaryTest.java)、[WorkerFailureWindowsTest.java](../../../../../../../test/java/com/exportflow/worker/WorkerFailureWindowsTest.java)。
 package com.exportflow.worker.infrastructure.excel;
@@ -55,6 +56,7 @@ public class PoiExportFileGenerator implements ExportFileGenerator {
     if (!guard.check()) return stopped(context, guard);
     try {
       var workspace = storage.prepareAttempt(context);
+      repairService.prepareResume(context, workspace, guard);
       collection.collect(context, guard);
       Optional<ArtifactProof> existing =
           artifacts.findReady(context.lease().taskId(), context.snapshot().configurationHash());

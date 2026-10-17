@@ -1,5 +1,7 @@
 # HTTP与SSE契约草稿
 
+后续增量：[005继续及自动推流契约](../../005-task-resume-and-live-progress/contracts.md)新增继续入口与RESUME动作，以下保留004历史范围。
+
 **版本**：0.3　**状态**：规格0.3及测试阶段已于2026-10-17获负责人批准，当前生产实施；保留测试先行证据。
 关联：[规格](../spec.md)、[计划](../plan.md)、[任务](../tasks.md)、[模型](../data-model.md)、[暂停协议](execution-control.md)。
 

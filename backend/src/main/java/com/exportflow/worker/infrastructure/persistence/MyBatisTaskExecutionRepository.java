@@ -1,3 +1,4 @@
+// 本次增量：[计划](../../../../../../../../../specs/005-task-resume-and-live-progress/plan.md)。
 // 本期实施与验证：[任务记录](../../../../../../../../../specs/004-task-management/tasks.md)。
 // 规格互链：[计划](../../../../../../../../../specs/002-order-management/plan.md)；[任务与完整映射](../../../../../../../../../specs/002-order-management/tasks.md)；验证：[RuntimeCapabilityTest.java](../../../../../../../test/java/com/exportflow/RuntimeCapabilityTest.java)、[DeliveryIsolationUnitTest.java](../../../../../../../test/java/com/exportflow/worker/DeliveryIsolationUnitTest.java)、[DurabilityGuardTest.java](../../../../../../../test/java/com/exportflow/worker/DurabilityGuardTest.java)。
 package com.exportflow.worker.infrastructure.persistence;
@@ -83,13 +84,22 @@ public class MyBatisTaskExecutionRepository implements TaskExecutionRepository {
             }
             executions.markRunning(taskId.toString());
             Instant until = now.plus(policy.leaseDuration());
-            executions.insertLease(
-                taskId.toString(),
-                owner,
-                now,
-                until,
-                now.plus(policy.maxAttemptDuration()),
-                until.plus(backoff(0, policy)));
+            if (record == null)
+              executions.insertLease(
+                  taskId.toString(),
+                  owner,
+                  now,
+                  until,
+                  now.plus(policy.maxAttemptDuration()),
+                  until.plus(backoff(0, policy)));
+            else
+              executions.resumeLease(
+                  taskId.toString(),
+                  owner,
+                  now,
+                  until,
+                  now.plus(policy.maxAttemptDuration()),
+                  until.plus(backoff(record.recoveryCount(), policy)));
             executions.setControl(taskId.toString(), task.controlVersion());
             progress.recordChange(taskId, tasks.lockTask(taskId).version());
           } else {

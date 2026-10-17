@@ -1,3 +1,4 @@
+// 本次增量：[计划](../../../../../../../../specs/005-task-resume-and-live-progress/plan.md)。
 // 设计：[任务管理用例](../../../../../../../../specs/004-task-management/function-design.md)。
 package com.exportflow.exporttasks.application;
 
@@ -36,5 +37,15 @@ public class TaskManagementService {
 
   private BusinessException unavailable() {
     return new BusinessException("STATE_UNAVAILABLE", "任务状态暂不可用", 503, "UNKNOWN", null);
+  }
+
+  public ResumeResult resume(ResumeRequest request) {
+    try {
+      return tasks.resume(request);
+    } catch (BusinessException known) {
+      throw known;
+    } catch (RuntimeException unknown) {
+      throw unavailable();
+    }
   }
 }

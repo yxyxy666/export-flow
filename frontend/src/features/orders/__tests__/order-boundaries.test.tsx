@@ -227,6 +227,11 @@ describe('TC-202/205/206/208/209/210/211 页面边界补充', () => {
     } finally { release(); }
   });
   it('UNKNOWN离页明确告知结果未确认且离页不会撤销受理任务', async () => {
+    // 任务页现已查询权威列表；本例只授权目标页的一次只读快照，不放宽其他额外请求。
+    server.use(http.get('*/api/v1/export-tasks', ({ request }) => {
+      requests.push({ method: 'GET', url: new URL(request.url) });
+      return HttpResponse.json({ items: [], page: 1, pageSize: 20, total: '0', activityVersion: '0', hasActiveTasks: false });
+    }));
     server.use(http.post('*/api/v1/export-tasks', () => HttpResponse.error()));
     const user = mount(); await loaded(); const dialog = await open(user);
     await user.click(within(dialog).getByRole('button', { name: '确认' }));
@@ -235,6 +240,7 @@ describe('TC-202/205/206/208/209/210/211 页面边界补充', () => {
     expect(screen.getByText(/离开.*(不.*撤销|不.*取消)|重新进入.*核对/)).toBeVisible();
     await act(async () => { await router.navigate('/export-tasks'); });
     expect(window.location.pathname).toBe('/export-tasks');
+    await waitFor(() => expect(requests.filter(request => request.url.pathname === '/api/v1/export-tasks' && request.method === 'GET')).toHaveLength(1));
     expect(screen.queryByText(/任务已取消|后台已取消|已撤销/)).not.toBeInTheDocument();
   });
 

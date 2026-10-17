@@ -14,7 +14,7 @@
 
 2026-10-11[订单规格0.4](specs/002-order-management/spec.md)已获开发授权。订单页面及集中API已实现，153项前端测试、类型检查和构建通过。2026-10-12删除订单造数，后端直接读取负责人容器中的110000条订单；当前功能回归300项通过，正式质量门禁通过，110000行Excel五次独立测量成功。性能测试已按负责人要求停止，本轮开发与review收尾；剩余验证由负责人确认本轮无需执行，适用验证与免验记录已收尾，不将免验记作实测通过。实际状态见[任务清单](specs/002-order-management/tasks.md)和[来源结果](docs/validation/002-order-management/provided-data.md)。
 
-以下命令均在项目根目录执行，适用于 Windows PowerShell。订单查询和创建需要后端；任务管理仍为文字占位。后端不可达时，订单页显示可重试的请求错误。
+以下命令均在项目根目录执行，适用于 Windows PowerShell。任务页已提供列表、筛选、SSE、暂停及[继续增量](specs/005-task-resume-and-live-progress/spec.md)。后端不可达时，页面显示可重试的请求错误。
 
 ### Make 启动入口
 

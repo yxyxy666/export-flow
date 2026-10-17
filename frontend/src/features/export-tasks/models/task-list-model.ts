@@ -1,3 +1,4 @@
+// 本次增量：[计划](../../../../../specs/005-task-resume-and-live-progress/plan.md)。
 // 设计与验证：[任务规格](../../../../../specs/004-task-management/function-design.md)。
 import { TASK_STATUSES, type TaskListItem, type TaskQuery } from '../types/export-task.types';
 
@@ -10,6 +11,7 @@ export function mergeTaskEvent(current: TaskListItem | undefined, next: TaskList
 /** 未知状态不开放任何操作，服务端动作还需与已知状态交集。 */
 export function getTaskActions(task: TaskListItem) {
   return { canPause: ['PENDING', 'RUNNING'].includes(task.status) && task.allowedActions.includes('PAUSE'),
+    canResume: task.status === 'PAUSED' && task.allowedActions.includes('RESUME'),
     canDownload: task.status === 'SUCCEEDED' && task.allowedActions.includes('DOWNLOAD'),
     statusLabel: TASK_STATUSES.includes(task.status as typeof TASK_STATUSES[number])
       ? TASK_STATUS_LABELS[task.status as keyof typeof TASK_STATUS_LABELS] : '未知状态',
