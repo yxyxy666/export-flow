@@ -26,12 +26,11 @@ public class TaskManagementPersistenceMapper {
       List<ExportField> fields =
           json.readValue(row.fieldsJson(), new TypeReference<List<ExportField>>() {});
       ExportField.validateFields(fields);
-      var actions =
-          status == TaskStatus.SUCCEEDED
-              ? List.of("DOWNLOAD")
-              : Set.of(TaskStatus.PENDING, TaskStatus.RUNNING).contains(status)
-                  ? List.of("PAUSE")
-                  : status == TaskStatus.PAUSED ? List.of("RESUME") : List.<String>of();
+      var actions = new java.util.ArrayList<String>();
+      if (status == TaskStatus.SUCCEEDED) actions.add("DOWNLOAD");
+      if (Set.of(TaskStatus.PENDING, TaskStatus.RUNNING).contains(status)) actions.add("PAUSE");
+      if (status == TaskStatus.PAUSED) actions.add("RESUME");
+      actions.add("DELETE");
       return new TaskListItem(
           UUID.fromString(row.taskId()),
           row.taskNo(),

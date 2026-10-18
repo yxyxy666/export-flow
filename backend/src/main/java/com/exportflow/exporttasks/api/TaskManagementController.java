@@ -3,7 +3,10 @@
 package com.exportflow.exporttasks.api;
 
 import com.exportflow.exporttasks.api.TaskManagementApiModels.*;
+import com.exportflow.exporttasks.api.TaskDeletionApiModels.DeleteTaskRequestDto;
+import com.exportflow.exporttasks.api.TaskDeletionApiModels.DeleteTaskResponseDto;
 import com.exportflow.exporttasks.application.TaskManagementService;
+import com.exportflow.exporttasks.application.TaskDeletionService;
 import com.exportflow.shared.domain.BusinessException;
 import com.fasterxml.jackson.core.StreamReadFeature;
 import com.fasterxml.jackson.databind.*;
@@ -17,12 +20,17 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/export-tasks")
 public class TaskManagementController {
   private final TaskManagementService service;
+  private final TaskDeletionService deletion;
   private final TaskManagementApiMapper mapper;
   private final ObjectMapper json;
 
   public TaskManagementController(
-      TaskManagementService service, TaskManagementApiMapper mapper, ObjectMapper json) {
+      TaskManagementService service,
+      TaskDeletionService deletion,
+      TaskManagementApiMapper mapper,
+      ObjectMapper json) {
     this.service = service;
+    this.deletion = deletion;
     this.mapper = mapper;
     this.json =
         json.copy()
@@ -62,6 +70,37 @@ public class TaskManagementController {
         .body(new ResumeResultDto(result.outcome(), mapper.toDto(result.task())));
   }
 
+  /** 统一删除入口；服务端依据最新任务状态分流运行中和终态清理。 */
+  @DeleteMapping(path = "/{taskId}", consumes = "application/json", produces = "application/json")
+  public ResponseEntity<DeleteTaskResponseDto> delete(
+      @PathVariable UUID taskId, HttpServletRequest request) throws java.io.IOException {
+    var input = readDeleteRequest(request);
+    if (input.operationId() == null || input.expectedVersion() == null)
+      throw BusinessException.validation();
+    long version;
+    try {
+      if (!input.expectedVersion().matches("0|[1-9][0-9]*")) throw new NumberFormatException();
+      version = Long.parseLong(input.expectedVersion());
+    } catch (NumberFormatException invalid) {
+      throw BusinessException.validation();
+    }
+    var result =
+        deletion.delete(
+            new com.exportflow.exporttasks.domain.TaskDeletionModels.DeleteRequest(
+                taskId, input.operationId(), version));
+    return ResponseEntity.status(result.outcome().equals("REPLAY") ? 200 : 202)
+        .header("Cache-Control", "no-store")
+        .body(
+            new DeleteTaskResponseDto(
+                result.outcome(),
+                result.taskId(),
+                result.operationId(),
+                result.mode().name(),
+                result.state().name(),
+                Long.toString(result.version()),
+                result.priorStatus().name()));
+  }
+
   private PauseRequestDto readControlRequest(HttpServletRequest request)
       throws java.io.IOException {
     byte[] bytes = request.getInputStream().readNBytes(4097);
@@ -73,5 +112,16 @@ public class TaskManagementController {
       throw BusinessException.validation();
     }
     return dto;
+  }
+
+  private DeleteTaskRequestDto readDeleteRequest(HttpServletRequest request)
+      throws java.io.IOException {
+    byte[] bytes = request.getInputStream().readNBytes(4097);
+    if (bytes.length > 4096) throw BusinessException.validation();
+    try {
+      return json.readValue(bytes, DeleteTaskRequestDto.class);
+    } catch (com.fasterxml.jackson.core.JsonProcessingException invalid) {
+      throw BusinessException.validation();
+    }
   }
 }

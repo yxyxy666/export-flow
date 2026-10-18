@@ -43,6 +43,9 @@ public class ExportCommandHandler {
         return DeliveryDecision.CLOSE_CHANNEL;
       var snapshot = tasks.findSnapshot(command.taskId());
       if (snapshot.isEmpty()) return DeliveryDecision.CLOSE_CHANNEL;
+      var deletionControl = executions.findControl(command.taskId());
+      if (deletionControl != null && "DELETING".equals(deletionControl.status()))
+        return DeliveryDecision.ACK;
       var task = snapshot.get().task();
       if (task.status() == TaskStatus.SUCCEEDED || task.status() == TaskStatus.FAILED)
         return DeliveryDecision.ACK;

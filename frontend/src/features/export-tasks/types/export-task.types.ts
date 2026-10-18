@@ -40,7 +40,7 @@ export interface TaskListItem {
   processedCount: number; progressPercent: number; status: string; fields: ExportField[];
   fileName: string; fileSize: string | null; createdAt: string; finishedAt: string | null;
   errorCode: string | null; errorSummary: string | null; version: string; controlVersion: string;
-  allowedActions: ('PAUSE' | 'RESUME' | 'DOWNLOAD')[];
+  allowedActions: ('PAUSE' | 'RESUME' | 'DOWNLOAD' | 'DELETE')[];
   executionPhase: 'NOT_STARTED' | 'COLLECTING' | 'CHECKING' | 'REBUILDING' | 'ASSEMBLING' | 'COMPLETE';
   repairState: 'NONE' | 'CHECKING' | 'REBUILDING' | 'PAUSING' | 'PAUSED' | 'FAILED';
   repairEpoch: string; repairAttempt: number; repairReasonCode: string | null;
@@ -52,3 +52,8 @@ export interface TaskPage {
 export interface TaskUpdatedEvent { activityVersion: string; task: TaskListItem }
 export interface PauseRequest { operationId: string; expectedControlVersion: string }
 export interface PauseResult { outcome: 'APPLIED' | 'REPLAY'; task: TaskListItem }
+export interface DeleteTaskRequest { operationId: string; expectedVersion: string }
+export interface DeleteTaskResponse {
+  outcome: 'ACCEPTED' | 'REPLAY'; taskId: string; operationId: string;
+  mode: 'ACTIVE_STOP' | 'TERMINAL_CLEANUP'; state: string; version: string; priorStatus: string;
+}

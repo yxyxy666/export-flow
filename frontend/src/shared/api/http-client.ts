@@ -3,7 +3,7 @@
 import { ApiRequestError, normalizeApiError } from './api-error';
 
 export interface RequestOptions {
-  method?: 'GET' | 'POST';
+  method?: 'GET' | 'POST' | 'DELETE';
   body?: unknown;
   headers?: Record<string, string>;
   signal?: AbortSignal;

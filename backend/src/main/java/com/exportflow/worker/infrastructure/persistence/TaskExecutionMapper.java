@@ -21,8 +21,16 @@ public interface TaskExecutionMapper {
       @Param("recoveryAt") Instant recoveryAt);
 
   @Select(
-      "SELECT t.status,t.control_version,e.owner_id AS owner,e.fence,e.lease_until,COALESCE(c.checkpoint_version,0) AS checkpoint_version,'KNOWN' AS read_outcome FROM export_tasks t LEFT JOIN task_execution e ON e.task_id=t.task_id LEFT JOIN export_checkpoints c ON c.task_id=t.task_id WHERE t.task_id=#{taskId}")
+      "SELECT CASE WHEN t.deletion_state<>'NONE' THEN 'DELETING' ELSE t.status END AS status,t.control_version,e.owner_id AS owner,e.fence,e.lease_until,COALESCE(c.checkpoint_version,0) AS checkpoint_version,'KNOWN' AS read_outcome FROM export_tasks t LEFT JOIN task_execution e ON e.task_id=t.task_id LEFT JOIN export_checkpoints c ON c.task_id=t.task_id WHERE t.task_id=#{taskId}")
   com.exportflow.worker.domain.ExecutionModels.ControlSnapshot control(String taskId);
+
+  @Select("SELECT deletion_state FROM export_tasks WHERE task_id=#{taskId}")
+  String deletionState(@Param("taskId") String taskId);
+
+  /** 删除屏障建立时推进 fence 并让旧租约立即失效。 */
+  @Update(
+      "UPDATE task_execution SET fence=fence+1,heartbeat_at=UTC_TIMESTAMP(3),control_version=#{controlVersion} WHERE task_id=#{taskId}")
+  int stopForDeletion(@Param("taskId") String taskId, @Param("controlVersion") long controlVersion);
 
   @Update("UPDATE task_execution SET control_version=#{version} WHERE task_id=#{taskId}")
   int setControl(@Param("taskId") String taskId, @Param("version") long version);

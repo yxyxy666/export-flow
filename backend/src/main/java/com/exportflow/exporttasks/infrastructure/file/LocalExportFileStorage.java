@@ -218,4 +218,45 @@ public class LocalExportFileStorage implements ExportFileStorage {
   public void closeWorkspace(AttemptWorkspace workspace) {
     /* 文件引用永久由DB裁决；当前流由各操作结构化关闭。 */
   }
+
+  @Override
+  public void deleteTaskFiles(UUID taskId) throws IOException {
+    if (taskId == null) throw new InvalidExportDataException();
+    deleteTree(root.resolve("tasks").resolve(taskId.toString()).normalize());
+    // scratch 按进程/任务隔离，不能按年龄或整个 scratch 根目录递归删除。
+    Path scratch = root.resolve("scratch").normalize();
+    if (Files.isDirectory(scratch, LinkOption.NOFOLLOW_LINKS)) {
+      try (var processes = Files.list(scratch)) {
+        for (Path process : processes.toList()) {
+          if (Files.isDirectory(process, LinkOption.NOFOLLOW_LINKS))
+            deleteTree(process.resolve(taskId.toString()).normalize());
+        }
+      }
+    }
+  }
+
+  private void deleteTree(Path target) throws IOException {
+    if (!target.startsWith(root) || !Files.exists(target, LinkOption.NOFOLLOW_LINKS)) return;
+    checkPath(target);
+    try (var paths = Files.walk(target)) {
+      paths.sorted(Comparator.reverseOrder()).forEach(path -> {
+        try {
+          checkPath(path);
+          Files.deleteIfExists(path);
+        } catch (IOException failure) {
+          throw new FileCleanupRuntimeException(failure);
+        }
+      });
+    } catch (FileCleanupRuntimeException failure) {
+      throw failure.io;
+    }
+  }
+
+  private static final class FileCleanupRuntimeException extends RuntimeException {
+    private final IOException io;
+
+    private FileCleanupRuntimeException(IOException io) {
+      this.io = io;
+    }
+  }
 }

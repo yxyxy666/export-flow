@@ -7,6 +7,7 @@ import com.exportflow.worker.domain.ExecutionModels.GenerationContext;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.UUID;
 
 /** 文件存在不代表就绪或成功；设计 function-design-reference.md，TC-234/235。 */
 public interface ExportFileStorage {
@@ -28,4 +29,7 @@ public interface ExportFileStorage {
   DownloadHandle openDownload(ArtifactProof proof) throws IOException;
 
   void closeWorkspace(AttemptWorkspace workspace) throws IOException;
+
+  /** 删除任务专属目录；调用方必须先完成数据库引用保护裁决。 */
+  default void deleteTaskFiles(UUID taskId) throws IOException {}
 }

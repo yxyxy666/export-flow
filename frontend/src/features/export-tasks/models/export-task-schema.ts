@@ -38,7 +38,7 @@ export const taskListItemSchema = z.strictObject({
   progressPercent: z.number().int().min(0).max(100), status: z.string().min(1).max(64), fields: exportFieldsSchema,
   fileName: z.string().min(1).max(255), fileSize: taskVersionSchema.nullable(), createdAt: utcInstantSchema,
   finishedAt: utcInstantSchema.nullable(), errorCode: z.string().max(128).nullable(), errorSummary: z.string().max(255).nullable(),
-  version: taskVersionSchema, controlVersion: taskVersionSchema, allowedActions: z.array(z.enum(['PAUSE', 'RESUME', 'DOWNLOAD'])),
+  version: taskVersionSchema, controlVersion: taskVersionSchema, allowedActions: z.array(z.enum(['PAUSE', 'RESUME', 'DOWNLOAD', 'DELETE'])),
   executionPhase: z.enum(['NOT_STARTED', 'COLLECTING', 'CHECKING', 'REBUILDING', 'ASSEMBLING', 'COMPLETE']),
   repairState: z.enum(['NONE', 'CHECKING', 'REBUILDING', 'PAUSING', 'PAUSED', 'FAILED']),
   repairEpoch: taskVersionSchema, repairAttempt: z.number().int().min(0).max(3), repairReasonCode: z.string().max(128).nullable(),
@@ -52,3 +52,9 @@ export const taskUpdatedSchema = z.strictObject({ activityVersion: taskVersionSc
 export const taskStreamMarkerSchema = z.strictObject({ connectionId: z.uuid(), activityVersion: taskVersionSchema });
 export const pauseRequestSchema = z.strictObject({ operationId: z.uuid(), expectedControlVersion: taskVersionSchema });
 export const pauseResultSchema = z.strictObject({ outcome: z.enum(['APPLIED', 'REPLAY']), task: taskListItemSchema });
+export const deleteTaskRequestSchema = z.strictObject({ operationId: z.uuid(), expectedVersion: taskVersionSchema });
+export const deleteTaskResponseSchema = z.strictObject({
+  outcome: z.enum(['ACCEPTED', 'REPLAY']), taskId: z.uuid(), operationId: z.uuid(),
+  mode: z.enum(['ACTIVE_STOP', 'TERMINAL_CLEANUP']), state: z.string().min(1),
+  version: taskVersionSchema, priorStatus: z.string().min(1),
+});

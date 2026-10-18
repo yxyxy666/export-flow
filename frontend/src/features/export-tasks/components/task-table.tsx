@@ -15,8 +15,8 @@ function repairHint(task: TaskListItem): string | undefined {
   if (task.repairState === 'CHECKING' || task.executionPhase === 'CHECKING') return '正在校验文件';
 }
 /** 表格只呈现ViewModel与已校验动作，下载路径使用既有同源端点。 */
-export function TaskTable({ rows, isBusy, onPause, onResume }: { rows: TaskListItem[]; isBusy: boolean;
-  onPause(task: TaskListItem): void; onResume?(task: TaskListItem): void }) {
+export function TaskTable({ rows, isBusy, onPause, onResume, onDelete }: { rows: TaskListItem[]; isBusy: boolean;
+  onPause(task: TaskListItem): void; onResume?(task: TaskListItem): void; onDelete(task: TaskListItem): void }) {
   const { token } = theme.useToken();
   return <Table<TaskListItem> rowKey="taskId" dataSource={rows} pagination={false}
     locale={{ emptyText: '暂无匹配任务' }} scroll={{ x: 1350 }} columns={[
@@ -40,9 +40,14 @@ export function TaskTable({ rows, isBusy, onPause, onResume }: { rows: TaskListI
       { title: '失败说明', width: 200, render: (_, task) => task.status === 'FAILED' ? task.errorSummary ?? '任务执行失败' : '—' },
       { title: '操作', width: 100, fixed: 'right', render: (_, task) => {
         const actions = getTaskActions(task);
-        return actions.canPause ? <Button size="small" disabled={isBusy} onClick={() => onPause(task)}>暂停</Button>
-          : actions.canResume ? <Button size="small" disabled={isBusy || !onResume} onClick={() => onResume?.(task)}>继续</Button>
-          : actions.canDownload ? <a href={exportTaskFileUrl(task.taskId)}>下载</a> : <span>{actions.unavailableReason}</span>;
+        if (isBusy) return <span>处理中</span>;
+        return <Space size={8}>
+          {actions.canPause && <Button size="small" onClick={() => onPause(task)}>暂停</Button>}
+          {actions.canResume && <Button size="small" disabled={!onResume} onClick={() => onResume?.(task)}>继续</Button>}
+          {actions.canDownload && <a href={exportTaskFileUrl(task.taskId)}>下载</a>}
+          {actions.canDelete && <Button danger size="small" onClick={() => onDelete(task)}>删除</Button>}
+          {!actions.canPause && !actions.canResume && !actions.canDownload && !actions.canDelete && <span>{actions.unavailableReason}</span>}
+        </Space>;
       } },
     ]} />;
 }

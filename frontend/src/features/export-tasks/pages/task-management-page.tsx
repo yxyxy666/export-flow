@@ -4,6 +4,7 @@ import { Alert, App, Button, Card, Pagination, Select, Space } from 'antd';
 import { useTaskList } from '../hooks/use-task-list';
 import { useTaskStream } from '../hooks/use-task-stream';
 import { useTaskActions } from '../hooks/use-task-actions';
+import { useTaskDeletion } from '../hooks/use-task-deletion';
 import { TaskFilter } from '../components/task-filter';
 import { TaskTable } from '../components/task-table';
 import type { TaskListItem } from '../types/export-task.types';
@@ -15,6 +16,7 @@ export function TaskManagementPage() {
     hasActiveTasks: list.snapshot?.hasActiveTasks ?? false, activityVersion: list.snapshot?.activityVersion ?? '0',
     refresh: list.refresh, accept: list.accept });
   const actions = useTaskActions(list.accept, () => { void stream.refresh(); });
+  const deletion = useTaskDeletion(() => { void stream.refresh(); });
   function confirmPause(task: TaskListItem) {
     modal.confirm({ title: '确认暂停任务？', content: `暂停 ${task.taskNo}，已登记的数据会保留。`,
       okText: '确认', cancelText: '取消', onOk: () => actions.pause(task) });
@@ -23,6 +25,10 @@ export function TaskManagementPage() {
     modal.confirm({ title: '确认继续任务？', content: `继续 ${task.taskNo}，将先检查已保存的数据，仅重建不匹配的部分并重新计算进度。`,
       okText: '确认', cancelText: '取消', onOk: () => actions.resume(task) });
   }
+  function confirmDelete(task: TaskListItem) {
+    modal.confirm({ title: '确认删除任务？', content: `删除 ${task.taskNo} 后，任务记录和导出文件将被清理，无法恢复。`,
+      okText: '确认删除', cancelText: '取消', okButtonProps: { danger: true }, onOk: () => deletion.deleteTask(task) });
+  }
   return <section className="task-management-page"><h1>任务管理</h1>
     <Card size="small"><TaskFilter query={list.query} onQuery={filter => list.setQuery({ ...list.query,
       keyword: filter.keyword || undefined, status: filter.status, page: 1 })}
@@ -30,10 +36,14 @@ export function TaskManagementPage() {
     {list.error && <Alert type="error" title={list.snapshot ? '刷新失败，列表尚未更新' : '任务查询失败，请刷新重试'} />}
     {stream.notice && <Alert type="warning" title={stream.notice} />}
     {actions.error && <Alert type="error" title={actions.error} />}
+    {deletion.error && <Alert type="error" title={deletion.error} />}
+    {deletion.operation?.state === 'UNKNOWN' && <Alert type="warning" title={deletion.operation.message}
+      action={<Button onClick={() => void deletion.retry()}>找回删除结果</Button>} />}
     {actions.operation?.state === 'UNKNOWN' && <Alert type="warning" title={actions.operation.message}
       action={<Button onClick={() => void actions.retry()}>找回结果</Button>} />}
     <Card size="small" title="导出任务" extra={<Button loading={list.isLoading} onClick={() => void stream.refresh()}>刷新</Button>}>
-      <TaskTable rows={list.snapshot?.items ?? []} isBusy={!!actions.operation} onPause={confirmPause} onResume={confirmResume} />
+      <TaskTable rows={list.snapshot?.items ?? []} isBusy={!!actions.operation || !!deletion.operation}
+        onPause={confirmPause} onResume={confirmResume} onDelete={confirmDelete} />
       <Space wrap style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
         <span>共 {list.snapshot?.total ?? '0'} 条</span>
         <Pagination current={list.query.page} pageSize={list.query.pageSize}

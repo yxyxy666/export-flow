@@ -62,6 +62,8 @@ public class MyBatisTaskExecutionRepository implements TaskExecutionRepository {
         status -> {
           var task = tasks.lockTask(taskId);
           if (task == null) return new ClaimResult(ClaimKind.UNKNOWN, null, null);
+          if (!"NONE".equals(executions.deletionState(taskId.toString())))
+            return new ClaimResult(ClaimKind.UNKNOWN, null, null);
           var command = outbox.lockByTask(taskId.toString());
           var record = executions.lock(taskId.toString());
           Instant now = outbox.databaseNow();
@@ -155,6 +157,7 @@ public class MyBatisTaskExecutionRepository implements TaskExecutionRepository {
           var record = executions.lock(lease.taskId().toString());
           Instant now = outbox.databaseNow();
           if (task == null
+              || !"NONE".equals(executions.deletionState(lease.taskId().toString()))
               || task.status() != TaskStatus.RUNNING
               || task.controlVersion() != lease.controlVersion()
               || record == null
@@ -180,6 +183,7 @@ public class MyBatisTaskExecutionRepository implements TaskExecutionRepository {
           var record = executions.lock(lease.taskId().toString());
           Instant now = outbox.databaseNow();
           if (task == null
+              || !"NONE".equals(executions.deletionState(lease.taskId().toString()))
               || task.status() != TaskStatus.RUNNING
               || task.controlVersion() != lease.controlVersion()
               || record == null
@@ -259,6 +263,8 @@ public class MyBatisTaskExecutionRepository implements TaskExecutionRepository {
   public ClaimResult find(UUID taskId) {
     var snapshot = tasks.findSnapshot(taskId);
     if (snapshot.isEmpty()) return new ClaimResult(ClaimKind.UNKNOWN, null, null);
+    if (!"NONE".equals(executions.deletionState(taskId.toString())))
+      return new ClaimResult(ClaimKind.UNKNOWN, null, null);
     var task = snapshot.get().task();
     if (task.status() == TaskStatus.PAUSED) return pausedClaim(taskId);
     if (task.status() == TaskStatus.PAUSING)

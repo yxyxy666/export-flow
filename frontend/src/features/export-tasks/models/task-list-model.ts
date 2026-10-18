@@ -13,6 +13,7 @@ export function getTaskActions(task: TaskListItem) {
   return { canPause: ['PENDING', 'RUNNING'].includes(task.status) && task.allowedActions.includes('PAUSE'),
     canResume: task.status === 'PAUSED' && task.allowedActions.includes('RESUME'),
     canDownload: task.status === 'SUCCEEDED' && task.allowedActions.includes('DOWNLOAD'),
+    canDelete: task.allowedActions.includes('DELETE'),
     statusLabel: TASK_STATUSES.includes(task.status as typeof TASK_STATUSES[number])
       ? TASK_STATUS_LABELS[task.status as keyof typeof TASK_STATUS_LABELS] : '未知状态',
     unavailableReason: task.status === 'PAUSED' ? '已暂停，文件尚未完成'

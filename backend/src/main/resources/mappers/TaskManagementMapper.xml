@@ -8,7 +8,7 @@
     execution_phase,repair_state,repair_epoch,repair_attempt,repair_reason_code</sql>
   <select id="findPage" resultType="com.exportflow.exporttasks.infrastructure.persistence.TaskManagementMapper$ListRow">
     WITH matched AS (SELECT <include refid="projection"/> FROM export_tasks
-      <where><if test="status != null">status=#{status}</if>
+      <where>deletion_state='NONE'<if test="status != null"> AND status=#{status}</if>
         <if test="keyword != null">AND (task_no COLLATE utf8mb4_0900_as_ci LIKE #{pattern} ESCAPE '!'
           OR <include refid="name"/> LIKE #{pattern} ESCAPE '!')</if></where>),
     metadata AS (SELECT (SELECT COUNT(*) FROM matched) AS total,a.version AS activity_version,
@@ -21,6 +21,6 @@
       m.total,m.activity_version,m.has_active_tasks FROM metadata m LEFT JOIN paged p ON TRUE ORDER BY p.created_at DESC,p.task_id DESC
   </select>
   <select id="find" resultType="com.exportflow.exporttasks.infrastructure.persistence.TaskManagementMapper$ListRow">
-    SELECT <include refid="projection"/>,0 AS total,0 AS activity_version,FALSE AS has_active_tasks FROM export_tasks WHERE task_id=#{value}
+    SELECT <include refid="projection"/>,0 AS total,0 AS activity_version,FALSE AS has_active_tasks FROM export_tasks WHERE task_id=#{value} AND deletion_state='NONE'
   </select>
 </mapper>

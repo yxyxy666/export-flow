@@ -9,8 +9,8 @@ import { orderPageSchema, orderQuerySchema } from '../../features/orders/models/
 import { createExportRequestSchema, createExportResponseSchema } from '../../features/export-tasks/models/export-task-schema';
 import { ApiRequestError } from './api-error';
 import { requestJson } from './http-client';
-import type { PauseRequest, PauseResult, TaskPage, TaskQuery } from '../../features/export-tasks/types/export-task.types';
-import { pauseRequestSchema, pauseResultSchema, taskPageSchema, taskQuerySchema } from '../../features/export-tasks/models/export-task-schema';
+import type { DeleteTaskRequest, DeleteTaskResponse, PauseRequest, PauseResult, TaskPage, TaskQuery } from '../../features/export-tasks/types/export-task.types';
+import { deleteTaskRequestSchema, deleteTaskResponseSchema, pauseRequestSchema, pauseResultSchema, taskPageSchema, taskQuerySchema } from '../../features/export-tasks/models/export-task-schema';
 import { writeTaskQuery } from '../../features/export-tasks/models/task-query';
 
 /** 唯一订单查询入口：只编码已提交条件，校验协议后才交给查询缓存。 */
@@ -81,6 +81,18 @@ export async function resumeExportTask(taskId: string, request: PauseRequest, si
   }));
   if (!result.success) throw new ApiRequestError('protocol', {
     code: 'INVALID_RESPONSE', message: '继续结果尚未确认，请找回结果', traceId: '', outcome: 'UNKNOWN',
+  });
+  return result.data;
+}
+/** 统一删除入口；调用方冻结操作ID和任务摘要版本，结果不明时复用原请求。 */
+export async function deleteExportTask(taskId: string, request: DeleteTaskRequest, signal?: AbortSignal): Promise<DeleteTaskResponse> {
+  const input = deleteTaskRequestSchema.parse(request);
+  if (!/^[0-9a-f-]{36}$/i.test(taskId)) throw new Error('任务标识无效');
+  const result = deleteTaskResponseSchema.safeParse(await requestJson(`/api/v1/export-tasks/${taskId}`, {
+    method: 'DELETE', body: input, signal,
+  }));
+  if (!result.success) throw new ApiRequestError('protocol', {
+    code: 'INVALID_RESPONSE', message: '删除结果尚未确认，请找回结果', traceId: '', outcome: 'UNKNOWN',
   });
   return result.data;
 }

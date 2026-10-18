@@ -23,7 +23,7 @@ public interface TaskManagementMapper {
       @Param("result") String result);
 
   @Update(
-      "UPDATE export_tasks SET status='PENDING',control_version=control_version+1,version=version+1,pause_requested_at=NULL,paused_at=NULL,execution_phase='CHECKING',repair_state=IF(repair_attempt>0,'REBUILDING','CHECKING') WHERE task_id=#{id} AND status='PAUSED' AND control_version=#{expected}")
+      "UPDATE export_tasks SET status='PENDING',control_version=control_version+1,version=version+1,pause_requested_at=NULL,paused_at=NULL,execution_phase='CHECKING',repair_state=IF(repair_attempt>0,'REBUILDING','CHECKING') WHERE task_id=#{id} AND status='PAUSED' AND deletion_state='NONE' AND control_version=#{expected}")
   int resume(@Param("id") String id, @Param("expected") long expected);
 
   List<ListRow> findPage(TaskQuery query);
@@ -44,7 +44,7 @@ public interface TaskManagementMapper {
       @Param("result") String result);
 
   @Update(
-      "UPDATE export_tasks SET control_version=control_version+1,version=version+1,pause_requested_at=UTC_TIMESTAMP(3),paused_at=IF(status='PENDING',UTC_TIMESTAMP(3),NULL),repair_state=IF(repair_state IN ('CHECKING','REBUILDING'),IF(status='PENDING','PAUSED','PAUSING'),repair_state),status=IF(status='PENDING','PAUSED','PAUSING') WHERE task_id=#{id} AND status IN ('PENDING','RUNNING') AND control_version=#{expected}")
+      "UPDATE export_tasks SET control_version=control_version+1,version=version+1,pause_requested_at=UTC_TIMESTAMP(3),paused_at=IF(status='PENDING',UTC_TIMESTAMP(3),NULL),repair_state=IF(repair_state IN ('CHECKING','REBUILDING'),IF(status='PENDING','PAUSED','PAUSING'),repair_state),status=IF(status='PENDING','PAUSED','PAUSING') WHERE task_id=#{id} AND status IN ('PENDING','RUNNING') AND deletion_state='NONE' AND control_version=#{expected}")
   int pause(@Param("id") String id, @Param("expected") long expected);
 
   @Update(
