@@ -1,5 +1,7 @@
 # 订单管理测试与真实边界验证
 
+本地基础设施初始化另由[scripts/start-infrastructure.test.ps1](scripts/start-infrastructure.test.ps1)验证，命令为`powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/scripts/start-infrastructure.test.ps1`。该回归替换Docker命令边界，并在临时目录检查随机凭据、应用连接生成与重复保留，不创建真实容器或修改业务数据；从零创建本项目Compose及后端启动的真实专项证据见[迁移验证](../docs/validation/local-infrastructure-bootstrap.md)。
+
 本目录是规格0.4获批后的测试设施，关联[计划](../specs/002-order-management/plan.md)、[任务](../specs/002-order-management/tasks.md)与[当前证据](../docs/validation/002-order-management/green-results.md)。[测试harness POM](backend/pom.xml)仅编译测试、加载已存在的正式源文件及资源，不替代仓库正式[后端POM](../backend/pom.xml)，也不生成迁移或生产入口。正式入口已实施，夹具已删除测试准备阶段“入口缺失就跳过”的旧分支；后续入口缺失必须直接失败。
 
 前端使用项目锁定pnpm10.34.6执行`npx --yes pnpm@10.34.6 --dir frontend test:run`。后端正式门禁使用`backend/mvnw.cmd -f backend/pom.xml verify`；harness保留测试准备阶段用途。按负责人2026-10-11要求全部复用project-export-flow，不再启动Testcontainers或Ryuk。真实边界使用正式Failsafe的完整临时路径配置，避免Windows默认短路径的NIO管道错误。环境与实际限制见[共享服务记录](../docs/validation/002-order-management/shared-services.md)。

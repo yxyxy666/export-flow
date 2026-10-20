@@ -58,6 +58,7 @@ AGENTS.md > .specify/memory/constitution.md > docs/rules/ > specs/<feature-dir>/
 | `frontend/` | 可独立运行的静态前端；app、layouts、features、shared 分工见模块 README | 前端实现阶段 |
 | `backend/` | Java21/Spring Boot后端；订单0.4已授权实施，查询、受理、投递、执行、文件与恢复分层；验收状态见规格任务 | 后端对应规格获批后实施与验证 |
 | `docs/validation/` | 实际运行环境、命令、结构与页面验证证据 | 验证执行后据实维护 |
+| `docker-compose.yml`、`infrastructure/`、`scripts/start-infrastructure.ps1` | 本项目中间件定义、空卷初始化及独立make infra入口；见[运行规则](docs/rules/container.md) | 基础设施初始化逻辑或配置变化时 |
 
 ## 按任务查阅
 

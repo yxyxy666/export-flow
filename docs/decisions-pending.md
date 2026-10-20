@@ -4,7 +4,7 @@
 
 ## 运行与交付
 
-使用宿主机应用、本地构建门禁、前端dist和后端jar，复用既有中间件并隔离schema/vhost/键前缀。当前不新增Compose、托管CI或远程发布，多主机存储延期。已同步[运行规则](rules/container.md)、[构建规则](rules/build.md)、[ADR-0009](adr/0009-engineering-runtime-and-progress-notification.md)和[决策记录](../specs/002-order-management/decision-record.md)。
+使用宿主机应用、本地构建门禁、前端dist和后端jar，隔离schema/vhost/键前缀。2026-10-20负责人明确：新使用者先执行make infra从零创建本项目基础设施和应用连接，再执行make dev启动应用；不按端口复用其他项目容器。已按[ADR-0010](adr/0010-local-infrastructure-bootstrap.md)同步[运行规则](rules/container.md)与[构建规则](rules/build.md)，替代先前“不新增Compose”的限制。托管CI、远程发布和多主机存储仍延期。
 
 ## 基础骨架规格评审
 

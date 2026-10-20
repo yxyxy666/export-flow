@@ -1,73 +1,79 @@
 # 本地启动脚本
 
-根目录[Makefile](../Makefile)封装[run-project.ps1](run-project.ps1)。当前支持Windows PowerShell 5.1及以上和GNU Make；其他系统需另行适配。入口只启动宿主机前后端，不操作现有容器、数据库账号、源订单或共享MQ配置。脚本为UTF-8 BOM，兼容Windows PowerShell中文解析。
+[Makefile](../Makefile)统一封装[run-project.ps1](run-project.ps1)。支持Windows PowerShell 5.1+、GNU Make；其他系统需另行适配。基础设施由[start-infrastructure.ps1](start-infrastructure.ps1)创建，应用在宿主机运行。
 
-## 一次性准备
+## 全新环境：两步启动
 
-安装Java21、Node22 LTS（至少22.12）、GNU Make；npm随Node安装。前端始终通过npm exec使用锁定pnpm10.34.6，无需修改全局pnpm。首次执行需要网络下载依赖和Maven Wrapper。Windows可安装GNU Make：
-
-```powershell
-winget install --id ezwinports.make --exact --source winget --scope user
-```
-
-若安装后找不到make，重新打开终端并确认GNU Make的bin目录已加入PATH。
-
-本机2026-10-12已安装GNU Make4.4.1至`$env:LOCALAPPDATA\Programs\GNU Make\4.4.1\bin`并登记用户PATH。已打开的PowerShell不会自动刷新环境；在该终端执行下面两行即可立即使用：
+安装并启动Docker Desktop（Linux引擎及Compose v2+），安装GNU Make、Java21、Node22 LTS（至少22.12，含npm）。在项目根目录执行：
 
 ```powershell
-$env:Path += ";$env:LOCALAPPDATA\Programs\GNU Make\4.4.1\bin"
+make infra
 make dev
 ```
 
-根目录另提供[make.cmd](../make.cmd)作为Windows兼容入口，PowerShell中`./make dev`或`.\make.cmd dev`均可使用。入口优先使用本机已安装的GNU Make4.4.1，否则从PATH查找make.exe；无需刷新当前终端PATH。它只将参数转给GNU Make并保留退出码；Makefile仍是唯一命令定义，实际工具链脚本仍在scripts目录。
+PowerShell找不到make时，可使用仓库内的`./make infra`、`./make dev`或`.\make.cmd infra`、`.\make.cmd dev`。包装器优先查找本机用户目录下GNU Make4.4.1，否则使用PATH中的make.exe；没有安装时会明确报错。GNU Make可通过`winget install --id ezwinports.make --exact --source winget --scope user`安装。
 
-复用负责人已启动的project-export-flow服务，应用数据库export_flow、迁移/运行账号和RabbitMQ vhost /export-flow须已准备；不能把应用JDBC地址指向源数据库exportflow。订单直接读取exportflow.orders，迁移账号需应用库DDL及来源SELECT/REFERENCES权限，运行账号只读订单、读写任务表，MQ账号需当前vhost权限及管理接口核验权限，详见[quickstart](../specs/002-order-management/quickstart.md)。本脚本不自动创建这些资源。
+`make infra`不依赖Java、Node或预先准备的数据库、账号、订单表、配置文件，也不要求先复制或编辑.env文件。它会：
 
-本机2026-10-12已按负责人要求准备被Git忽略的.env.local，并在已有服务内创建应用库export_flow、专属运行/迁移账号和MQ vhost /export-flow及专属账号；运行账号对来源订单仅有SELECT权限，真实密码只存本地配置。当前直接执行`make dev`，不要用示例覆盖已准备的文件。
+1. 自动生成四个独立随机密码，写入被Git忽略的`.env.infrastructure.local`。
+2. 自动生成应用`.env.local`，填入与新基础设施一致的连接信息。
+3. 用本项目[Compose](../docker-compose.yml)创建MySQL8.4、Redis7.4、RabbitMQ3.13及持久数据卷。
+4. MySQL空卷首次启动时执行[初始化脚本](../infrastructure/mysql/01-bootstrap.sh)，创建应用库`export_flow`、来源库`exportflow`及兼容示例契约的空`orders`表；创建独立运行、迁移账号及权限。
+5. RabbitMQ创建`/export-flow` vhost和`export_flow_mq`账号，等待三个服务健康。
 
-2026-10-17本机8080被Steam调试服务占用，`.env.local`现设`EXPORT_FLOW_BACKEND_PORT=8081`。后端和Vite代理共用该键，页面仍为5173，无需关闭Steam。示例及未配置默认值保留8080；修改端口后重新启动前后端。诊断和实际验证见[运行修复记录](../docs/validation/004-task-management/runtime-startup-fix.md)。
-
-其他开发环境首次配置时，在项目根执行：
-
-```powershell
-if (-not (Test-Path .env.local)) { Copy-Item .env.example .env.local }
-# 编辑 .env.local，将占位值改为自己的本机连接值。
-make dev
-```
-
-[.env.example](../.env.example)不含真实凭据；.env.local被Git忽略。每行KEY=value，可用整值引号；不会执行配置内容，值内的#、=、$保留。文件配置优先于当前进程环境；也可只设置相同环境变量而不创建文件。不要在终端输出或提交实际密码。
-
-本机`EXPORT_FLOW_FILE_ROOT`已配置为项目根目录的`export-data`绝对路径；项目迁移到其他位置时同步修改此项。示例保留可选的绝对路径覆盖，未配置时应用使用启动工作目录的`export-data`，标准入口固定工作目录为项目根。Excel保存在`export-data/tasks/<任务ID>/artifacts/<文件ID>.xlsx`，断点和临时运行文件也位于该根目录，全部由Git忽略。修改配置后由用户重启后端；现有文件需要保留任务目录结构，不能只移动Excel导致断点引用失效。日志目录仍使用原配置。
+初始化完成后，`make dev`检查配置并并行启动前后端；后端Flyway创建任务、Outbox、断点等业务表及订单只读视图。新环境订单列表为空，不生成演示或性能数据，也不访问示例项目的数据库。随后可按实际需要准备业务订单。
 
 ## 命令
 
 | 命令 | 行为 |
 | --- | --- |
 | make / make help | 显示帮助 |
-| make check | 检查工具与必需配置；实际依赖连接由后端启动核验 |
-| make dev | 检查通过后并行启动前后端；Ctrl+C停止前台应用 |
-| make backend | 打包当前后端源码后启动，启用真实消费者，最大堆512MiB |
-| make frontend | 冻结锁文件安装前端依赖后启动Vite |
+| make infra | 创建、初始化或重新启动当前项目基础设施，等待健康 |
+| make infra-status | 只读查看当前项目Compose服务 |
+| make check | 检查应用工具与必需连接配置 |
+| make dev | 仅并行启动前后端，不创建或初始化基础设施 |
+| make backend | 打包后启动后端，启用消费者，最大堆512MiB |
+| make frontend | 按锁文件安装依赖后启动Vite |
 | make install | 只安装前端依赖 |
-| make build | 构建前端dist与可执行后端jar |
+| make build | 构建前端dist和后端可执行jar |
 
-启动与build不执行测试或性能专项；正式质量门禁仍使用[构建规则](../docs/rules/build.md)中的Wrapper verify及前端命令。停止应用保留已有任务、文件和三个共享容器，不提供按端口杀进程或清库操作。
+前端默认[http://127.0.0.1:5173/orders](http://127.0.0.1:5173/orders)，后端默认[http://127.0.0.1:8080](http://127.0.0.1:8080)，健康检查为`/actuator/health`。修改`.env.local`中的`EXPORT_FLOW_BACKEND_PORT`后重新启动，后端与Vite代理共同使用该值。前端固定使用pnpm10.34.6，通过npm exec调用，不依赖全局pnpm版本；首次执行需要网络下载依赖及Maven Wrapper。
 
-前端地址[http://127.0.0.1:5173/orders](http://127.0.0.1:5173/orders)，API地址[http://127.0.0.1:8080](http://127.0.0.1:8080)，健康检查[http://127.0.0.1:8080/actuator/health](http://127.0.0.1:8080/actuator/health)。端口被占用时直接报错。
+按Ctrl+C停止应用，基础设施继续运行。重复`make infra`保留本项目容器、卷、数据库及基础设施密码，应用连接字段按当前基础设施同步，不删除或重写订单。停止过的本项目服务会由Compose重新启动。
 
-上行API为默认端口；本机当前实际API和健康检查使用`http://127.0.0.1:8081`及`http://127.0.0.1:8081/actuator/health`，由`EXPORT_FLOW_BACKEND_PORT`决定。
+## 项目资源及配置
 
-并行启动中任一服务因连接或端口失败时，查看错误并按Ctrl+C停止其余应用，再修正配置重新启动。
+固定Compose项目名为`export-flow`；只管理该项目的三个服务，不按端口发现或复用其他项目的容器。其他服务占用所需端口时Compose返回失败，需要使用者处理端口冲突。初始化失败也保留容器和卷以供诊断。
 
-没有GNU Make时，在两个终端分别执行相同入口：
+新服务只向127.0.0.1发布默认端口3306、6379、5672和15672。MySQL、Redis、RabbitMQ均使用命名卷；RabbitMQ固定hostname保持持久卷节点身份。新MySQL的运行账号只有应用库DML及来源订单SELECT权限；迁移账号负责应用库DDL并只对来源持有SELECT/REFERENCES。已有外部服务、账号、订单和全局MQ策略不会被初始化脚本修改。
+
+[.env.infrastructure.example](../.env.infrastructure.example)是自动生成模板。四个密码由命令生成64位小写十六进制值，不打印或提交；它们仅在新数据卷首次初始化时生效。端口可在首次运行前复制模板并调整`EXPORT_FLOW_*_PORT`，密码占位符应替换为同格式随机值；普通首次启动不需要此操作。已有卷不能通过编辑密码文件更改账号密码。
+
+[.env.example](../.env.example)是应用配置模板。`.env.infrastructure.local`保留，不重置已有密码。`make infra`会同步应用`.env.local`中的数据库、迁移账号、MQ和Redis连接字段；有变化时先完整备份为`.env.local.backup-<时间>-<标识>`，保留应用端口、文件根、日志、实例配置和注释。连接未变化时不重写、不新增备份。备份同样被Git忽略，包含旧凭据，不要提交。应用.env.local每行KEY=value，允许整值引号，内容不执行；文件配置优先于进程环境。直接java命令不会自动读取.env.local。
+
+导出文件及断点默认保存到项目根`export-data/`，已被Git忽略。可用`EXPORT_FLOW_FILE_ROOT`指定绝对路径；迁移目录需保留整个任务目录结构。日志另由`EXPORT_FLOW_LOG_FILE`配置。不得通过删卷、清库或删除导出文件修复启动问题。
+
+## 无Make入口和验证
 
 ```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/start-infrastructure.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/start-infrastructure.ps1 -Action status
+# 基础设施初始化后，两个终端分别运行：
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/run-project.ps1 -Action backend
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/run-project.ps1 -Action frontend
 ```
 
-脚本也支持--help；任一命令失败返回非零码。实际核验见[启动入口记录](../docs/validation/002-order-management/startup-entry.md)。
+基础设施健康等待默认180秒，可使用`-TimeoutSeconds 300`调整。所有脚本支持`--help`，失败返回非零码。
 
-## 任务进度实例配置
+```powershell
+# 初始化后仅解析Compose配置，不输出真实密码：
+docker compose --env-file .env.infrastructure.local config --quiet
+# 不操作Docker的初始化及编排回归：
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/scripts/start-infrastructure.test.ps1
+```
 
-任务列表／SSE使用`EXPORT_FLOW_INSTANCE_ID`作为稳定实例身份，同环境每个API实例必须唯一；重复身份无法取得exclusive consumer时拒绝就绪。`EXPORT_FLOW_PROGRESS_ENABLED`控制进度通知，Redis连接由`.env.example`中的`EXPORT_FLOW_REDIS_*`配置，缓存故障时回源MySQL。脚本允许这些外部变量。应用MQ账号除原命令权限外，还需当前vhost内进度交换机`exportflow.progress.v1`与本实例队列`exportflow.progress.v1.<instanceId>`的声明、绑定、发布和消费权限；不授予其他vhost权限。任务功能和验证步骤见[004说明](../specs/004-task-management/quickstart.md)。
+启动和build不执行业务测试或性能专项；正式质量门禁仍按[构建规则](../docs/rules/build.md)执行。此次决策见[ADR-0010](../docs/adr/0010-local-infrastructure-bootstrap.md)，真实验证及限制见[验证记录](../docs/validation/local-infrastructure-bootstrap.md)。
+
+## 进度实例配置
+
+`EXPORT_FLOW_INSTANCE_ID`默认local-api，同环境多个API实例需配置不同且跨重启稳定的标识。`EXPORT_FLOW_PROGRESS_ENABLED`控制进度通知，`EXPORT_FLOW_REDIS_*`配置可降级缓存；缓存故障回源MySQL。初始化的MQ账号在本项目vhost内具备任务及进度交换机／队列操作和管理接口核验权限。任务功能说明见[004 quickstart](../specs/004-task-management/quickstart.md)。

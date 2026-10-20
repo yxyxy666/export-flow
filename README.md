@@ -18,21 +18,22 @@
 
 ### Make 启动入口
 
-已有容器保持运行。安装Java21、Node22和GNU Make后，复制连接配置并填写真实值：
+安装Java21、Node22、GNU Make并启动Docker Desktop后，在没有任何中间件或连接配置的全新环境中执行：
 
 ```powershell
-if (-not (Test-Path .env.local)) { Copy-Item .env.example .env.local }
-# 填写 .env.local 中的运行、迁移和 MQ 凭据。
+make infra
 make dev
 ```
 
-前端打开[http://127.0.0.1:5173/orders](http://127.0.0.1:5173/orders)，后端监听127.0.0.1:8080；按Ctrl+C停止应用。也可分别执行`make frontend`和`make backend`，`make build`生成dist与jar，`make help`查看全部入口。脚本固定使用pnpm10.34.6，启动不执行测试或性能专项。
+`make infra`自动创建并初始化本项目的MySQL、Redis、RabbitMQ及所需账号、数据库、MQ vhost，生成随机密码和匹配的`.env.local`；无需先手工配置基础设施。完成后，`make dev`仅并行启动前后端。前端打开[http://127.0.0.1:5173/orders](http://127.0.0.1:5173/orders)，后端默认监听127.0.0.1:8080；按Ctrl+C停止应用。也可分别执行`make frontend`和`make backend`，`make build`生成dist与jar，`make help`查看全部入口。
 
 Windows PowerShell也可直接执行`./make dev`，根[make.cmd](make.cmd)会找到本机已安装的GNU Make，无需先刷新当前终端PATH。
 
 导出文件和断点存放在项目根目录的`export-data/`，由`.env.local`中的`EXPORT_FLOW_FILE_ROOT`绝对路径指定，该目录已被Git忽略。完成的Excel位于`export-data/tasks/<任务ID>/artifacts/<文件ID>.xlsx`；修改此配置后需重新启动后端。
 
-应用库export_flow、账号及MQ vhost /export-flow需已准备；容器启动不代表这些应用资源存在。入口只复用已有服务，不创建容器、不造订单数据。Windows Make安装、连接权限和无Make时的命令见[脚本说明](scripts/README.md)，本次核验见[启动入口记录](docs/validation/002-order-management/startup-entry.md)。下方保留直接工具链命令供单独操作。
+基础设施实现参考示例项目，定义见[docker-compose.yml](docker-compose.yml)。入口只管理当前项目的Compose，不发现或复用其他项目容器；`make infra-status`查看当前项目状态。重复`make infra`保留本项目数据、凭据和已有配置。
+
+初始化同时准备兼容示例的空`exportflow.orders`来源表及只读权限，后端通过Flyway创建自己的任务等业务表。全新环境的订单列表为空，不生成演示或性能订单。已有`.env.local`的基础设施连接字段会先备份再同步，应用端口、文件目录及其他设置保留。Windows Make安装、配置及无Make命令见[脚本说明](scripts/README.md)，验证见[基础设施迁移记录](docs/validation/local-infrastructure-bootstrap.md)。
 
 ### 环境要求
 
@@ -116,6 +117,7 @@ java -jar backend/target/export-flow-0.2.0-SNAPSHOT.jar --export-flow.consumer-e
 │   ├── rules/                        # 前后端、测试、构建、容器等领域细则
 │   ├── adr/                          # 架构决策记录
 ├── scripts/                          # 项目级检查和自动化脚本
+├── docker-compose.yml                # MySQL、Redis、RabbitMQ本地基础设施
 ├── frontend/                         # 订单管理与静态任务页；统一业务API
 └── backend/                          # Spring Boot、MyBatis、Flyway及异步文件链路
 ```

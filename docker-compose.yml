@@ -1,0 +1,56 @@
+# make infra创建本项目中间件，make dev只启动宿主机应用。
+name: export-flow
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${EXPORT_FLOW_MYSQL_ROOT_PASSWORD:?请配置本地MySQL管理员密码}
+      EXPORT_FLOW_DB_PASSWORD: ${EXPORT_FLOW_DB_PASSWORD:?请通过make infra生成应用密码}
+      EXPORT_FLOW_MIGRATOR_PASSWORD: ${EXPORT_FLOW_MIGRATOR_PASSWORD:?请通过make infra生成迁移密码}
+    ports:
+      - "127.0.0.1:${EXPORT_FLOW_MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./infrastructure/mysql/01-bootstrap.sh:/docker-entrypoint-initdb.d/01-bootstrap.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_ROOT_PASSWORD\" mysqladmin ping -h 127.0.0.1 -uroot --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:${EXPORT_FLOW_REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    hostname: export-flow-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: export_flow_mq
+      RABBITMQ_DEFAULT_PASS: ${EXPORT_FLOW_RABBITMQ_PASSWORD:?请配置本地RabbitMQ密码}
+      RABBITMQ_DEFAULT_VHOST: /export-flow
+    ports:
+      - "127.0.0.1:${EXPORT_FLOW_RABBITMQ_PORT:-5672}:5672"
+      - "127.0.0.1:${EXPORT_FLOW_RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  mysql-data:
+  redis-data:
+  rabbitmq-data:

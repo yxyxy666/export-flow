@@ -5,6 +5,8 @@
 - 批准依据：项目负责人明确要求“解决下所有待决策项，按你的建议来”
 - 关联：[产品需求](../product/order-export-prd.md)、[测试规则](../rules/testing.md)、[构建规则](../rules/build.md)、[运行规则](../rules/container.md)、[本次决策记录](../../specs/002-order-management/decision-record.md)
 
+> 2026-10-20：[ADR-0010](0010-local-infrastructure-bootstrap.md) 已取代本文“不新增 Compose”和仅由示例项目启动中间件的限制。以下保留原决策背景；其他隔离、业务数据、测试与发布边界继续有效。
+
 ## 决策范围
 
 接受订单规格的技术建议、工程工具、运行隔离和参数，具体值由[决策记录](../../specs/002-order-management/decision-record.md)与[依赖版本](../../specs/002-order-management/dependency-versions.md)维护。执行权及异常恢复见[ADR-0008](0008-worker-execution-lease-and-recovery.md)。下列后续功能的方向也已确定，但不加入当前订单规格的实施范围。

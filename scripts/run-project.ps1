@@ -1,10 +1,10 @@
 ﻿param(
-    [ValidateSet('check', 'install', 'build', 'backend', 'frontend')]
+    [ValidateSet('check', 'install', 'build', 'backend', 'frontend', 'infra', 'infra-status')]
     [string]$Action = 'check',
     [Alias('--help')][switch]$Help
 )
 # Windows PowerShell 5.1+；启动职责及配置见 scripts/README.md。
-# 不操作容器、账号或订单数据；只封装已批准的本地工具链命令。
+# make infra单独初始化基础设施；dev/backend/frontend仅运行应用。
 $ErrorActionPreference = 'Stop'
 $taskProjectRoot = Split-Path -Parent $PSScriptRoot
 
@@ -61,7 +61,7 @@ function Assert-BackendConfiguration {
         [string]::IsNullOrWhiteSpace($taskValue) -or $taskValue -match '<[^>]+>'
     })
     if ($taskMissingKeys.Count -gt 0) {
-        throw ('缺少有效连接配置：' + ($taskMissingKeys -join ', ') + '。复制 .env.example 为 .env.local 并填写真实值；应用库、账号和 vhost 需已准备。')
+        throw ('缺少有效连接配置：' + ($taskMissingKeys -join ', ') + '。全新环境请先执行 make infra 自动生成基础设施及连接；已有本地配置请核对其值。')
     }
 }
 
@@ -91,18 +91,24 @@ function Build-Backend {
 }
 
 if ($Help) {
-    Write-Output '用法：make dev | backend | frontend | install | build | check | help'
-    Write-Output 'dev 同时启动前后端；backend/frontend 可分别在两个终端启动，Ctrl+C 停止。'
-    Write-Output '前置：Windows PowerShell 5.1+、GNU Make、Java21、Node22、npm，以及已准备的 MySQL/RabbitMQ 和应用连接配置。'
-    Write-Output '复制 .env.example 为 .env.local 后填写真实值；也支持环境变量。不会创建或停止容器，不造数，不运行性能测试。'
+    Write-Output '用法：make dev | backend | frontend | infra | infra-status | install | build | check | help'
+    Write-Output '首次先执行make infra自动创建并初始化本项目基础设施，再执行make dev同时启动前后端。'
+    Write-Output '前置：Windows PowerShell 5.1+、GNU Make、Java21、Node22、npm、Docker Desktop；创建依赖需 Compose v2+。'
+    Write-Output 'make infra自动生成随机凭据和.env.local；dev不创建容器。新订单来源为空表，不运行造数或性能测试。'
     Write-Output '没有 make 时：powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/run-project.ps1 -Action backend（或 frontend）。'
     exit 0
 }
 
 try {
     Push-Location $taskProjectRoot
-    Import-LocalConfiguration
+    if ($Action -notin @('infra', 'infra-status')) { Import-LocalConfiguration }
     switch ($Action) {
+        'infra' {
+            Invoke-CheckedCommand -Command 'powershell.exe' -Arguments @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $PSScriptRoot 'start-infrastructure.ps1'))
+        }
+        'infra-status' {
+            Invoke-CheckedCommand -Command 'powershell.exe' -Arguments @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $PSScriptRoot 'start-infrastructure.ps1'), '-Action', 'status')
+        }
         'check' {
             Assert-Command 'java'
             Assert-Command 'node'

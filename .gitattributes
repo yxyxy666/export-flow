@@ -1,0 +1,2 @@
+# MySQL容器内由Bash执行，Windows检出也必须保留LF。
+infrastructure/**/*.sh text eol=lf

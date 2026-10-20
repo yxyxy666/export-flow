@@ -2,7 +2,7 @@
 
 ## 已确定交付方式
 
-依据[ADR-0009](../adr/0009-engineering-runtime-and-progress-notification.md)，当前采用本地自动化门禁，不新增托管CI、Compose或远程发布。交付为frontend/dist静态资源与backend/target可执行jar；依赖版本见[订单版本表](../../specs/002-order-management/dependency-versions.md)，更新版本遵守锁文件和有效POM记录。规则确认不授权初始化尚未获批的工程。
+依据[ADR-0009](../adr/0009-engineering-runtime-and-progress-notification.md)，当前采用本地自动化门禁，不新增托管CI或远程发布。本地中间件Compose及启动按后续[ADR-0010](../adr/0010-local-infrastructure-bootstrap.md)管理。交付为frontend/dist静态资源与backend/target可执行jar；依赖版本见[订单版本表](../../specs/002-order-management/dependency-versions.md)，更新版本遵守锁文件和有效POM记录。规则确认不授权初始化尚未获批的工程。
 
 ## 阶段与命令
 
